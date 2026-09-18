@@ -126,7 +126,19 @@ for (const surface of ["web", "vscode"] as const) {
     await page
       .getByRole("textbox", { name: "Task name", exact: true })
       .fill("Updated nested cleanup");
-    await page.getByRole("button", { name: /^Tasks / }).click();
+    await page.getByRole("button", { name: "Back to parent scope" }).click();
+    await expect(
+      page.getByRole("textbox", { name: "Task name", exact: true }),
+    ).toHaveValue("Nested recovery");
+    await expect(page.locator(".react-flow__node")).toHaveCount(1);
+    await page.getByRole("button", { name: "Back to parent scope" }).click();
+    await expect(
+      page.getByRole("textbox", { name: "Task name", exact: true }),
+    ).toHaveValue("Recoverable block");
+    await expect(page.locator(".react-flow__node")).toHaveCount(3);
+    await expect(
+      page.getByRole("button", { name: "Back to parent scope" }),
+    ).toHaveCount(0);
     await page.getByRole("button", { name: "Add apt", exact: true }).click();
     await page
       .getByRole("textbox", { name: "Package name (name)", exact: true })

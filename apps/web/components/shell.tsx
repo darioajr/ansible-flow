@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { version } from "../../../package.json";
 import { ThemeSelect } from "./theme-select";
 import { usePathname } from "next/navigation";
 import {
@@ -76,7 +77,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <div className="sidebar-footer">
               <i className="status-dot" /> Shared authoring engine
               <br />
-              <small>Web + VS Code · v0.2</small>
+              <small>Web + VS Code · v{version}</small>
             </div>
           </PageSidebarBody>
         </PageSidebar>

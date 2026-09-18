@@ -82,6 +82,13 @@ export function scopesIn(play: Play): string[] {
       .flatMap((n) => [n.id, `${n.id}:rescue`, `${n.id}:always`]),
   ];
 }
+export function parentScope(play: Play, scope: string): string | undefined {
+  if (playScopes.includes(scope as (typeof playScopes)[number])) return;
+  const blockId = scope.split(":")[0];
+  return scopesIn(play).find((candidate) =>
+    nodesIn(play, candidate).some((node) => node.id === blockId),
+  );
+}
 function navigation(project: Project, s?: State) {
   const b =
     project.playbooks.find((b) => b.id === s?.bookId) ?? project.playbooks[0];

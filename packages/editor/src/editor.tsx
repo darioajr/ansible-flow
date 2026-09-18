@@ -34,6 +34,7 @@ import {
   RedoIcon,
   PlusIcon,
   TimesIcon,
+  ArrowLeftIcon,
 } from "@patternfly/react-icons";
 import {
   newPlay,
@@ -45,7 +46,13 @@ import {
 } from "@visual-ansible/air";
 import { generateYaml } from "@visual-ansible/generator";
 import { validatePlaybook } from "@visual-ansible/validator";
-import { createEditorStore, currentPlay, nodesIn, scopesIn } from "./store";
+import {
+  createEditorStore,
+  currentPlay,
+  nodesIn,
+  scopesIn,
+  parentScope,
+} from "./store";
 import { EditorContext } from "./context";
 import { Canvas } from "./canvas";
 import { Catalog } from "./catalog";
@@ -229,6 +236,7 @@ export function VisualEditor({
   const block = walk(playNodes(play)).find(
     (n) => n.id === s.scope.split(":")[0],
   );
+  const parent = parentScope(play, s.scope);
   async function exporting() {
     setProblemsOpen(true);
     if (errors.length) {
@@ -417,6 +425,19 @@ export function VisualEditor({
               <Label isCompact>{play[scope]?.length ?? 0}</Label>
             </Button>
           ))}
+          {block && parent !== undefined && (
+            <Button
+              variant="secondary"
+              icon={<ArrowLeftIcon />}
+              aria-label="Back to parent scope"
+              onClick={() => {
+                s.navigate(book.id, play.id, parent);
+                s.select([block.id]);
+              }}
+            >
+              Back
+            </Button>
+          )}
           {block && (
             <Label color="purple">
               {block.name} · {s.scope.split(":")[1] ?? "block"}

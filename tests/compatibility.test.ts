@@ -18,6 +18,7 @@ import {
   createEditorStore,
   currentPlay,
   nodesIn,
+  parentScope,
 } from "../packages/editor/src/store";
 import { editedDocument } from "../apps/vscode/extension/src/document-service";
 import { cliProblems } from "../apps/vscode/extension/src/cli-diagnostics";
@@ -29,6 +30,32 @@ const fixture = readFileSync(
   new URL("./fixtures/roles-blocks.yml", import.meta.url),
   "utf8",
 );
+it("finds the enclosing scope for blocks and recovery branches at any depth", () => {
+  const play = parsePlaybook(fixture).playbook.plays[0];
+  const outer = play.tasks[0];
+  const nested = outer.rescue![0];
+  for (const branch of ["", ":rescue", ":always"]) {
+    expect(parentScope(play, `${outer.id}${branch}`)).toBe("tasks");
+    expect(parentScope(play, `${nested.id}${branch}`)).toBe(
+      `${outer.id}:rescue`,
+    );
+  }
+  play.tasks = play.tasks.slice(1);
+  play.pre_tasks = [outer];
+  expect(parentScope(play, outer.id)).toBe("pre_tasks");
+  play.pre_tasks = [];
+  play.post_tasks = [outer];
+  expect(parentScope(play, outer.id)).toBe("post_tasks");
+  for (const scope of [
+    "tasks",
+    "pre_tasks",
+    "post_tasks",
+    "roles",
+    "handlers",
+    "missing",
+  ])
+    expect(parentScope(play, scope)).toBeUndefined();
+});
 it("round trips role order, variables, pre/post tasks and nested recovery in both clients", () => {
   const result = parsePlaybook(fixture);
   expect(result.problems).toEqual([]);
