@@ -20,12 +20,14 @@ export function JsonField({
   change,
   object = false,
   validate,
+  expandToContent = false,
 }: {
   label: string;
   value: Json | undefined;
   change: (v: Json | undefined) => void;
   object?: boolean;
   validate?: (v: Json) => boolean;
+  expandToContent?: boolean;
 }) {
   const [text, setText] = useState(
     value === undefined ? "" : JSON.stringify(value, null, 2),
@@ -44,10 +46,17 @@ export function JsonField({
     <FormGroup label={label}>
       <TextArea
         aria-label={label}
-        rows={3}
+        rows={
+          expandToContent
+            ? Math.min(14, Math.max(6, text.split("\n").length))
+            : 3
+        }
+        resizeOrientation={expandToContent ? "vertical" : "both"}
         value={text}
         validated={error ? "error" : "default"}
-        className="json-field"
+        className={
+          expandToContent ? "json-field json-field-expanded" : "json-field"
+        }
         onChange={(_, v) => {
           setText(v);
           try {
@@ -177,6 +186,7 @@ export function Properties() {
         />
         <JsonField
           label="Play variables (JSON)"
+          expandToContent
           value={play.vars}
           object
           change={(vars) =>

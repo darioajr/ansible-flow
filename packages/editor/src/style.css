@@ -388,6 +388,13 @@
 .json-field {
   font-family: monospace;
 }
+.json-field-expanded {
+  min-height: 140px;
+  max-height: 320px;
+}
+.json-field-expanded > textarea {
+  overflow-y: auto;
+}
 .field-error {
   color: #b82434;
   font-size: 11px;
