@@ -9,5 +9,6 @@
   "dependencies": {
     "@visual-ansible/air": "workspace:*",
     "@visual-ansible/module-metadata": "workspace:*"
-  }
+  },
+  "license": "Apache-2.0"
 }

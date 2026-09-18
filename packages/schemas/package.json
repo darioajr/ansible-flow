@@ -10,5 +10,6 @@
     "@visual-ansible/air": "workspace:*",
     "zod": "^4.0.0",
     "@visual-ansible/module-metadata": "workspace:*"
-  }
+  },
+  "license": "Apache-2.0"
 }

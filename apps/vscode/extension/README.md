@@ -13,3 +13,7 @@ Validation defaults to shared core rules. To use external checks, set `visualAns
 This release targets VS Code Desktop and Remote Development, not a browser-only extension host. Roles, pre/post tasks and nested block/rescue/always are supported. Aliases, import_playbook and unsupported YAML tags still require the text editor. Node positions are computed on reopen; no sidecar files are created.
 
 Run **Visual Ansible: Discover Ansible Modules** in a trusted workspace to load forms from ansible-doc in the active Extension Host. Configure `visualAnsible.ansibleDocPath` if needed. Select up to 20 modules at a time; metadata remains in memory for this workspace during the session.
+
+## License
+
+Apache-2.0. See LICENSE and NOTICE in the extension package. The previous MIT notice is retained in LICENSE-MIT for code originally distributed under those terms. Third-party components retain their own licenses.

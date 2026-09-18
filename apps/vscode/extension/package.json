@@ -1,10 +1,10 @@
 {
   "name": "visual-ansible-extension",
-  "displayName": "Visual Ansible \u2014 Playbook Flow",
+  "displayName": "Visual Ansible — Playbook Flow",
   "description": "Visual Ansible authoring using the shared Playbook Flow engine.",
   "version": "0.2.0",
   "publisher": "darioajr",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.96.0"
   },

@@ -1,112 +1,177 @@
 # Playbook Flow
 
-Recriação baseada na [spec v2](spec.md): **um engine e um editor visual compartilhados entre Web e VS Code**. Implementa o MVP Web, o MVP da extensão e a importação dos construtos suportados.
+**Visual automation. Real Ansible.**
 
-## Iniciar o Web
+Crie e edite playbooks Ansible visualmente no navegador ou no VS Code. O Playbook Flow transforma YAML em um diagrama editável e gera YAML Ansible a partir das alterações, com um editor e uma engine compartilhados entre as duas interfaces.
 
-Node.js 22.12+ e pnpm 11.2.2.
+O projeto está em desenvolvimento ativo: o foco atual é **autoria e validação de playbooks**. A aplicação não executa automações. Consulte o [roadmap](roadmap.md) para acompanhar as entregas e os próximos passos.
+
+## O que já funciona
+
+- Importação de YAML suportado, edição visual e exportação de playbooks.
+- Múltiplos plays, variáveis, `become`, `pre_tasks`, roles, tasks, `post_tasks` e handlers.
+- Blocos aninhados com `block`, `rescue` e `always`, condições, loops, resultados registrados e notificações.
+- Catálogo inicial com 20 módulos, formulários de argumentos e edição de valores complexos em JSON.
+- Diagnósticos com localização no YAML e proteção contra escrita visual em construções não suportadas.
+- Seleção múltipla, organização de tarefas, copiar/colar interno, duplicação e desfazer/refazer.
+
+| Recurso                | Web                            | VS Code                                             |
+| ---------------------- | ------------------------------ | --------------------------------------------------- |
+| Armazenamento          | Projetos locais no servidor    | Arquivos YAML do workspace                          |
+| Edição textual         | YAML editor → Apply to diagram | Editor de texto nativo, sincronizado com o visual   |
+| Salvamento e histórico | Autosave e snapshots da sessão | Save, dirty state e undo/redo nativos               |
+| Validação básica       | Engine e catálogo incluído     | Mesma engine e catálogo                             |
+| Validação externa      | Ainda não disponível           | `ansible-playbook --syntax-check` ou `ansible-lint` |
+| Descoberta de módulos  | Catálogo incluído              | `ansible-doc` no Extension Host                     |
+| Layout                 | Salvo no projeto               | Recalculado ao reabrir o arquivo                    |
+
+## Começar pelo Web
+
+Requisitos: **Node.js 22.12+** e **pnpm 11.2.2**. Ansible não é necessário para abrir o editor ou gerar YAML.
+
+Na raiz do projeto:
 
 ```bash
 corepack enable
-pnpm install
+corepack prepare pnpm@11.2.2 --activate
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Abra http://localhost:3000. Crie um projeto ou importe um `.yml`. Projetos persistem no servidor em `apps/web/data`; configure `DATA_DIR` com um caminho absoluto para mudar. O modo local não tem login.
+Abra **http://localhost:3000** e crie um projeto ou importe um arquivo YAML. Os projetos ficam em `apps/web/data` por padrão; use `DATA_DIR` com um caminho absoluto para alterar o diretório.
 
-## Instalar a extensão
+O Web funciona em modo local, sem login, e usa persistência JSON com **uma única réplica/processo**. Faça backup do diretório de dados ou do volume. Para disponibilizá-lo em rede, configure autenticação no proxy e o controle de acesso apropriado.
+
+### Experimentar um fluxo completo
+
+Importe [examples/fluxos-complexos.yml](examples/fluxos-complexos.yml): são **3 plays, 90 nós e 10 blocos**, com preparação, implantação canário, rollback e auditoria. As tarefas usam apenas `debug` e `set_fact`.
+
+Troque o play no seletor superior, explore **Pre-tasks**, **Tasks**, **Post-tasks** e **Handlers** e abra os escopos internos dos blocos para ver suas tarefas e caminhos de recuperação.
+
+## Usar no VS Code
+
+Com as dependências instaladas, gere e instale o pacote local:
 
 ```bash
 pnpm package:vscode
-code --install-extension apps/vscode/extension/visual-ansible-extension-0.2.0.vsix
+code --install-extension apps/vscode/extension/visual-ansible-extension-0.2.0.vsix --force
 ```
 
-Alternativa: VS Code → Extensions → **Install from VSIX…**. Abra seu workspace e execute **Visual Ansible: Open Playbook Visually**, ou **Open With → Visual Ansible Editor** em um YAML. A extensão não assume a abertura de todo arquivo YAML. Para depurar, abra este monorepo e use a configuração F5 **Visual Ansible Extension**.
+Também é possível usar **Extensions → Install from VSIX…**. O nome do arquivo acompanha a versão do manifesto; ajuste o caminho em versões futuras.
 
-## Usar o editor
+Abra um workspace e execute **Visual Ansible: Open Playbook Visually**, ou clique com o botão direito em um YAML e escolha **Open With → Visual Ansible Editor**. A extensão não substitui o editor padrão de todos os arquivos YAML.
 
-- Defina hosts e `become` em **Play properties**. Clique no fundo do canvas para retornar às propriedades do play.
-- Arraste módulos do catálogo ou use `+`; clique no nó para configurar argumentos.
-- Conecte uma saída à entrada de outra tarefa: o destino passa a executar logo após a origem. As arestas representam uma sequência, sem ciclos ou branching.
-- Use **Block → Edit block tasks / Edit rescue tasks / Edit always tasks** para editar cada sequência. Blocos podem ser aninhados. **Condition** e **Loop** configuram o comportamento das tarefas.
-- Use **Roles** e **Add Role** para referências de roles do play; **Pre-tasks** e **Post-tasks** preservam sua ordem em relação às roles. Para incluir/importar uma role dentro de tasks, use os módulos `include_role`/`import_role`.
-- Defina handlers na aba **Handlers** e referencie seus nomes em **Notify handlers**.
-- Use **YAML editor** (Web) ou **YAML preview** (VS Code), **Validate**, **Save** e, no Web, **Export YAML**.
-- No Web, **YAML editor** permite editar: altere o texto e clique em **Apply to diagram**. A aplicação valida o YAML, atualiza o diagrama e salva automaticamente. **Discard draft** retorna ao YAML atual do diagrama. Enquanto houver rascunho, a edição visual e a troca de playbook ficam pausadas; salvar ou sair pelos links exige aplicar ou descartar. Erros mantêm o texto para correção. Aplicar recalcula o layout do playbook ativo e pode ser desfeito/refeito; os demais playbooks não são alterados.
+O publisher configurado é `darioajr`, com ID `darioajr.visual-ansible-extension`. Se usava o VSIX antigo com publisher `playbook-flow`, desinstale a extensão anterior para evitar comandos duplicados. O pipeline está preparado; a publicação no Marketplace ainda depende da configuração e execução da release.
 
-O catálogo inclui 20 módulos: os 15 builtin do MVP, `apt`, `replace`, `community.general.ufw`, `include_role` e `import_role`. Campos complexos (loops, variáveis, environment, set_fact) usam JSON. Ctrl/Cmd+Z, Shift+Z, C, V, D, S e F, Delete, seleção múltipla e minimapa estão implementados. Clipboard é interno ao editor. O Web mantém 100 snapshots e autosave após 1 segundo; o VS Code usa o histórico e estado dirty nativos do documento.
+Para validar com Ansible, instale as ferramentas no ambiente do Extension Host e configure `visualAnsible.validationTool`. Em workspaces confiáveis, **Visual Ansible: Discover Ansible Modules** carrega metadados de até 20 módulos por seleção usando `ansible-doc`. Funciona com VS Code Desktop e Remote Development; não há suporte a um Extension Host exclusivamente no navegador.
 
-## Monorepo
+Veja [comandos, configuração e depuração da extensão](docs/VSCODE.md).
 
-```text
-apps/web                  Next.js, API e persistência local
-apps/vscode/extension     Extension Host, workspace, comandos, diagnostics
-apps/vscode/webview       React/Vite, adapter de mensagens
-packages/air              Modelo e operações de grafo
-packages/parser           YAML → AIR e localização de origem
-packages/generator        AIR → YAML, preservação de comentários
-packages/validator        Regras de domínio
-packages/module-metadata  Catálogo e parser de ansible-doc
-packages/schemas          Zod, AIR externo e protocolo Webview
-packages/editor           PatternFly + React Flow + Zustand, sem Next/vscode
+## Trabalhar com o diagrama
+
+1. Configure hosts, variáveis e privilégios em **Play properties**. Clique no fundo do canvas para voltar a esse painel.
+2. Arraste módulos do catálogo ou use `+`. Selecione uma tarefa para editar seus argumentos e comportamento.
+3. Conecte tarefas para reorganizar a sequência. As conexões não representam execução paralela nem ramificações arbitrárias.
+4. Nos blocos, use **Edit block tasks**, **Edit rescue tasks** e **Edit always tasks**. Cada sequência tem seu próprio escopo de edição.
+5. Cadastre handlers em **Handlers** e use seus nomes em **Notify handlers**. Em **Roles**, adicione referências às roles do play.
+6. Valide e salve; no Web, use **Export YAML** para obter o arquivo.
+
+No Web, alterações em **YAML editor** entram no diagrama por **Apply to diagram**. Um rascunho pendente pausa a edição visual; **Discard draft** restaura o YAML do diagrama. Erros preservam o texto para correção. No VS Code, edite o YAML pelo editor de texto nativo e use **YAML preview** para visualizar o conteúdo gerado.
+
+Os campos **Play variables (JSON)** e **All arguments (JSON object)** crescem até 14 linhas, com rolagem para conteúdos maiores e ajuste manual limitado a 320 px. Valores preenchidos aparecem em negrito; sugestões, em cinza itálico.
+
+## Executar com Podman ou Docker
+
+Com Podman no macOS, inicie a VM previamente com `podman machine start`:
+
+```bash
+podman build --format docker -t localhost/playbook-flow:0.2.0 .
+podman run --rm --name playbook-flow \
+  -p 127.0.0.1:3000:3000 \
+  --read-only --tmpfs /tmp \
+  -v playbook-flow-data:/data \
+  localhost/playbook-flow:0.2.0
 ```
 
-## Verificar
+O volume preserva os projetos. `--format docker` mantém o `HEALTHCHECK` da imagem.
+
+Com Docker:
+
+```bash
+docker build -t playbook-flow:0.2.0 .
+docker run --rm --name playbook-flow \
+  -p 127.0.0.1:3000:3000 \
+  --read-only --tmpfs /tmp \
+  -v playbook-flow-data:/data \
+  playbook-flow:0.2.0
+```
+
+Existem manifests iniciais em [deploy/kubernetes](deploy/kubernetes) e [deploy/openshift](deploy/openshift). Ajuste registry, imagem, armazenamento e acesso antes de aplicar. Eles usam uma réplica com PVC; a homologação completa em clusters permanece no roadmap.
+
+## Desenvolvimento e testes
 
 ```bash
 pnpm lint
 pnpm typecheck
 pnpm test
-# Opcional, com Ansible instalado:
-RUN_ANSIBLE_SYNTAX=1 pnpm test
+node --test scripts/prepare-marketplace-release.test.mjs
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
-# Baixa um VS Code isolado para testar o Extension Host:
 pnpm test:extension
 ```
 
-A CI inclui testes, builds Web/Vite/Extension Host, E2E nas duas superfícies, testes reais do VS Code, pacote VSIX, container e scan. Nada é publicado automaticamente.
+Com Ansible instalado, `RUN_ANSIBLE_SYNTAX=1 pnpm test` inclui verificações reais de sintaxe e descoberta de módulos. Os testes do Extension Host usam um VS Code isolado; no Linux, execute-os com Xvfb. Para depurar, use a configuração F5 **Visual Ansible Extension**.
 
-## Containers e clusters
-
-Com Podman (no macOS, a VM deve estar ligada com `podman machine start`):
-
-```bash
-podman build --format docker -t localhost/playbook-flow:0.2.0 .
-podman run --rm --name playbook-flow -p 127.0.0.1:3000:3000 --read-only --tmpfs /tmp -v playbook-flow-data:/data localhost/playbook-flow:0.2.0
+```text
+apps/web                  Aplicação Next.js, API e persistência local
+apps/vscode/extension     Extension Host, workspace, comandos e diagnósticos
+apps/vscode/webview       Interface React/Vite e protocolo de mensagens
+packages/air              Modelo intermediário e operações de grafo
+packages/parser           YAML → modelo, com localização de origem
+packages/generator        Modelo → YAML
+packages/validator        Regras de domínio
+packages/module-metadata  Catálogo e leitura de ansible-doc
+packages/schemas          Contratos Zod e protocolo da Webview
+packages/editor           Editor compartilhado: PatternFly, React Flow e Zustand
 ```
 
-Abra http://localhost:3000. O volume `playbook-flow-data` preserva os projetos entre execuções. `--format docker` mantém o `HEALTHCHECK` da imagem, que o formato OCI padrão do Podman ignora.
+Para contribuir, descreva o problema, mantenha as regras de domínio nos pacotes compartilhados e acrescente testes relevantes. Alterações devem respeitar os contratos das duas interfaces. Consulte [DEVELOPMENT.md](docs/DEVELOPMENT.md) e a [spec](spec.md).
 
-Com Docker ou para aplicar os manifests no cluster:
+## CI e publicação
 
-```bash
-docker build -t playbook-flow:0.2.0 .
-docker run --rm -p 3000:3000 --read-only --tmpfs /tmp -v playbook-flow-data:/data playbook-flow:0.2.0
-kubectl apply -k deploy/kubernetes
-# OpenShift:
-oc apply -k deploy/openshift
-```
+[Verify](.github/workflows/ci.yml) executa lint, tipos, testes, builds, E2E, testes nativos do VS Code, empacotamento, build do container e scan Trivy.
 
-Ajuste imagem/registry antes de aplicar. Manifests usam uma réplica com PVC, usuário não-root, capabilities removidas e filesystem somente leitura. O overlay OpenShift permite UID/grupo atribuídos pelo SCC. Ingress e Route são opcionais e aplicados separadamente. Configure autenticação no proxy antes de expor o modo local. Não há credenciais nesta fase, portanto nenhum Secret fictício é criado.
+[Publish VS Code Extension](.github/workflows/publish.yml) valida a versão, gera o VSIX e publica no Marketplace com o publisher `darioajr`. Tags `vX.Y.Z` iniciam a publicação; a execução manual permite apenas validar e empacotar. Releases por tag anexam o VSIX ao GitHub após sucesso no Marketplace.
 
-## Limites explícitos
+Configure o ambiente `production` e o secret `VSCE_PAT` conforme [PUBLISHING.md](docs/PUBLISHING.md). A versão da tag deve coincidir com a do manifesto da extensão. A publicação de imagens ainda não está implementada.
 
-- Web é modo local de autoria; RBAC, colaboração, Git, execução, AAP/AWX, inventários, Helm e Operator continuam nas fases futuras.
-- Persistência Web em JSON atômico, UUID e revisão otimista: **uma réplica/processo**. PostgreSQL e histórico persistente são evolução do adapter.
-- Importação cobre plays, módulos, tasks, block, handlers, when, loop, register, notify e opções comuns. Roles, pre/post tasks e blocos com rescue/always são suportados. Aliases, tags explícitas, import_playbook e construtos não representados bloqueiam escrita visual; o arquivo original é preservado. Veja [contrato de importação](docs/ARCHITECTURE.md).
-- O gerador preserva comentários e valores; pode normalizar nomes de módulos, aspas e formatação. Não promete preservação byte a byte.
-- Web valida AIR/metadados. VS Code pode executar syntax-check ou lint mediante comando explícito, Workspace Trust e ferramentas instaladas no Extension Host. Nenhum playbook é executado pela aplicação.
-- VS Code Desktop e Remote Development são alvos; `vscode.dev` sem host Node não está incluído.
-- Metadados incluídos cobrem argumentos comuns. No VS Code, execute **Visual Ansible: Discover Ansible Modules** para carregar formulários do `ansible-doc` do Extension Host (workspace confiável; até 20 módulos por seleção; cache por workspace durante a sessão). O Web usa o catálogo incluído.
-- Não armazene segredos. Valores de campos sensíveis conhecidos são recusados no Web; texto livre não é varrido por um detector completo. Use referências Jinja e credenciais externas. No VS Code o YAML pertence ao usuário e segue o fluxo nativo de arquivos.
-- Layout de nós é salvo no projeto Web; no VS Code o YAML permanece o único arquivo e o layout é calculado ao reabrir.
+## Limites atuais
 
-Detalhes: [arquitetura](docs/ARCHITECTURE.md), [API](docs/API.md), [VS Code](docs/VSCODE.md), [desenvolvimento](docs/DEVELOPMENT.md), [ADR](docs/ADR/001-shared-engine.md).
+- A aplicação não executa playbooks. Runner, AAP/AWX, inventários e credenciais estão previstos para fases futuras.
+- Autenticação, RBAC, colaboração, integração Git, persistência compartilhada, Helm e Operator ainda não estão completos.
+- Aliases YAML, tags explícitas, `import_playbook` e construções não representadas bloqueiam a escrita visual. O arquivo original é preservado.
+- Roles são referências; seus arquivos internos não são expandidos pelo editor.
+- O gerador preserva comentários e valores suportados, mas pode normalizar formatação e nomes de módulos. Não há garantia de reprodução byte a byte.
+- A validação básica não substitui o Ansible nem cobre todas as opções dos módulos. Módulos e collections precisam existir no ambiente quando usados com ferramentas externas.
+- Não armazene segredos nos projetos. Use referências Jinja e credenciais externas; a validação de campos conhecidos não é um detector geral de segredos.
 
-Detalhes das novas estruturas, exemplos e limites: [compatibilidade Ansible](docs/ANSIBLE-COMPATIBILITY.md).
+## Documentação
 
-## Publicação da extensão
+| Documento                                                | Conteúdo                                   |
+| -------------------------------------------------------- | ------------------------------------------ |
+| [Roadmap](roadmap.md)                                    | Entregas concluídas, lacunas e prioridades |
+| [Compatibilidade Ansible](docs/ANSIBLE-COMPATIBILITY.md) | YAML suportado, blocos, roles e limites    |
+| [Arquitetura](docs/ARCHITECTURE.md)                      | Engine compartilhada e adapters            |
+| [API](docs/API.md)                                       | Contratos do Web                           |
+| [VS Code](docs/VSCODE.md)                                | Extensão, validação e depuração            |
+| [Desenvolvimento](docs/DEVELOPMENT.md)                   | Ambiente e convenções                      |
+| [Publicação](docs/PUBLISHING.md)                         | Pipeline, credenciais e releases           |
+| [Dependências](docs/DEPENDENCIES.md)                     | Tecnologias e referências                  |
+| [ADR 001](docs/ADR/001-shared-engine.md)                 | Decisão sobre engine compartilhada         |
 
-O workflow [Publish VS Code Extension](.github/workflows/publish.yml) valida, gera o VSIX e publica no Marketplace com o publisher `darioajr`. Aceita tags `vX.Y.Z` ou execução manual, com opção de somente empacotar. Consulte [configuração do ambiente production, VSCE_PAT e release](docs/PUBLISHING.md).
+## Licença
+
+O Playbook Flow é distribuído sob a [Apache License 2.0](LICENSE). A escolha permite uso, modificação e distribuição, inclusive comercial, e inclui uma concessão explícita de direitos de patente pelos contribuidores nos termos da licença. As condições completas estão no [texto oficial](https://www.apache.org/licenses/LICENSE-2.0).
+
+Copyright © 2026 Playbook Flow contributors. O [NOTICE](NOTICE) registra a atribuição do projeto. O aviso [MIT anterior](LICENSE-MIT) permanece preservado para o código originalmente distribuído nesses termos; licenças já concedidas não são revogadas. Bibliotecas e assets de terceiros mantêm suas próprias licenças.

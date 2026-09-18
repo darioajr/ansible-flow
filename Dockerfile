@@ -17,6 +17,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 DAT
 COPY --from=builder --chown=1001:0 /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=1001:0 /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=1001:0 /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=1001:0 /app/LICENSE /app/LICENSE-MIT /app/NOTICE ./
 RUN mkdir -p /data && chown 1001:0 /data && chmod -R g=u /app /data
 USER 1001
 EXPOSE 3000

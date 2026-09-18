@@ -10,5 +10,6 @@
     "@visual-ansible/air": "workspace:*",
     "@visual-ansible/module-metadata": "workspace:*",
     "yaml": "^2.8.0"
-  }
+  },
+  "license": "Apache-2.0"
 }

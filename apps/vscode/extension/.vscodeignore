@@ -2,5 +2,7 @@
 !package.json
 !README.md
 !LICENSE
+!LICENSE-MIT
+!NOTICE
 !dist/extension.cjs
 !media/**

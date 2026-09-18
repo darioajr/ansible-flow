@@ -23,5 +23,6 @@
   "devDependencies": {
     "vite": "^7.0.0",
     "@vitejs/plugin-react": "^5.0.0"
-  }
+  },
+  "license": "Apache-2.0"
 }
