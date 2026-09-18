@@ -2,7 +2,7 @@
 
 ## Desenvolvimento e distribuição
 
-`pnpm build` gera Web, Webview e Extension Host. `pnpm package:vscode` cria o VSIX. O publisher `playbook-flow` é um identificador local de desenvolvimento; publicação no Marketplace não foi realizada.
+`pnpm build` gera Web, Webview e Extension Host. `pnpm package:vscode` cria o VSIX. O publisher configurado é `darioajr`. O pipeline de publicação está descrito em [Publicação no Marketplace](PUBLISHING.md); criar o pipeline não publica a extensão automaticamente. Ao migrar de um VSIX local com publisher `playbook-flow`, desinstale a extensão antiga para evitar comandos duplicados.
 
 F5 usa `.vscode/launch.json`. O pacote não contém Next.js: `dist/extension.cjs` roda no host, e `media` contém assets Vite + Monaco local.
 

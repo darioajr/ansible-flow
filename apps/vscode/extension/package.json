@@ -3,7 +3,7 @@
   "displayName": "Visual Ansible \u2014 Playbook Flow",
   "description": "Visual Ansible authoring using the shared Playbook Flow engine.",
   "version": "0.2.0",
-  "publisher": "playbook-flow",
+  "publisher": "darioajr",
   "license": "MIT",
   "engines": {
     "vscode": "^1.96.0"

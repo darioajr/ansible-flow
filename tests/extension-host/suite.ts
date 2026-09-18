@@ -5,7 +5,7 @@ import { parsePlaybook } from "@visual-ansible/parser";
 import { applyVisualEdit } from "../../apps/vscode/extension/src/workspace-document";
 export async function run() {
   const extension = vscode.extensions.getExtension(
-    "playbook-flow.visual-ansible-extension",
+    "darioajr.visual-ansible-extension",
   );
   assert.ok(extension, "Development extension is installed");
   const api = (await extension.activate()) as {

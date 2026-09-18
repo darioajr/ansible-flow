@@ -201,7 +201,9 @@ Referências: §§49–55 e 73.
 - [x] Documentação de arquitetura, API, desenvolvimento, dependências e ADR.
 - [ ] Ampliar logs estruturados e observabilidade; hoje há tratamento básico de falhas, não auditoria completa.
 - [ ] Auditoria sistemática de acessibilidade, desempenho e compatibilidade entre ambientes.
-- [ ] Pipeline de publicação de imagem e extensão, gestão de versões e releases.
+- [x] Pipeline da extensão: validação de versão/tag, testes, VSIX, Marketplace (`darioajr`) e GitHub Release; modo manual sem publicação. Configuração: [PUBLISHING.md](docs/PUBLISHING.md).
+- [ ] Configurar repositório remoto/credencial `VSCE_PAT` e executar a primeira publicação real da extensão.
+- [ ] Pipeline de publicação de imagem e gestão de releases dos demais componentes.
 - [ ] Validação de banco e das integrações futuras à medida que forem implementadas.
 
 ### Evidências de verificação já obtidas

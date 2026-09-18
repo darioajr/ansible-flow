@@ -106,3 +106,7 @@ Ajuste imagem/registry antes de aplicar. Manifests usam uma réplica com PVC, us
 Detalhes: [arquitetura](docs/ARCHITECTURE.md), [API](docs/API.md), [VS Code](docs/VSCODE.md), [desenvolvimento](docs/DEVELOPMENT.md), [ADR](docs/ADR/001-shared-engine.md).
 
 Detalhes das novas estruturas, exemplos e limites: [compatibilidade Ansible](docs/ANSIBLE-COMPATIBILITY.md).
+
+## Publicação da extensão
+
+O workflow [Publish VS Code Extension](.github/workflows/publish.yml) valida, gera o VSIX e publica no Marketplace com o publisher `darioajr`. Aceita tags `vX.Y.Z` ou execução manual, com opção de somente empacotar. Consulte [configuração do ambiente production, VSCE_PAT e release](docs/PUBLISHING.md).

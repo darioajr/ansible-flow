@@ -13,6 +13,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/prepare-marketplace-release.test.mjs
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pipx install ansible-core

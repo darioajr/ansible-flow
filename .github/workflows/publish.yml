@@ -1,0 +1,135 @@
+name: Publish VS Code Extension
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Committed extension version (X.Y.Z)"
+        required: true
+        type: string
+      publish:
+        description: "Publish to Marketplace (false only validates and packages)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vscode-marketplace-release
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Validate and package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      vsix: ${{ steps.release.outputs.vsix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate release and set repository metadata
+        id: release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/prepare-marketplace-release.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/prepare-marketplace-release.test.mjs
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pipx install ansible-core
+      - run: RUN_ANSIBLE_SYNTAX=1 pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: xvfb-run -a node scripts/test-extension.mjs
+      - name: Package VSIX
+        working-directory: apps/vscode/extension
+        run: pnpm exec vsce package --no-dependencies
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-vsix
+          path: apps/vscode/extension/${{ steps.release.outputs.vsix }}
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: marketplace-test-results
+          path: test-results/
+
+  publish-marketplace:
+    name: Publish to VS Code Marketplace
+    needs: package
+    if: github.event_name == 'push' || inputs.publish == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketplace-vsix
+          path: release
+      - name: Publish the validated VSIX
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSIX_FILE: ${{ needs.package.outputs.vsix }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error::Configure VSCE_PAT in the production environment."
+            exit 1
+          fi
+          pnpm exec vsce publish --packagePath "release/$VSIX_FILE"
+
+  create-release:
+    name: Attach VSIX to GitHub Release
+    needs: [package, publish-marketplace]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketplace-vsix
+          path: release
+      - name: Create release or update its asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          VSIX_FILE: ${{ needs.package.outputs.vsix }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "release/$VSIX_FILE" --clobber
+          else
+            gh release create "$RELEASE_TAG" "release/$VSIX_FILE" \
+              --verify-tag --title "Release $RELEASE_TAG" --generate-notes
+          fi
