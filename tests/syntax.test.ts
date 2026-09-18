@@ -2,9 +2,14 @@ import { it, expect } from "vitest";
 import { readFile, mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { parsePlaybook } from "@visual-ansible/parser";
 import { generateYaml } from "@visual-ansible/generator";
+
+const executeFile = promisify(execFile);
+const commandTimeout = 30_000;
+const cleanupAllowance = 5_000;
 it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
   "real Ansible accepts the shared generator output",
   async () => {
@@ -16,20 +21,21 @@ it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
       );
       const target = path.join(dir, "playbook.yml");
       await writeFile(target, generateYaml(parsePlaybook(text).playbook));
-      const out = execFileSync(
+      const { stdout } = await executeFile(
         "ansible-playbook",
         ["--syntax-check", "-i", "localhost,", target],
         {
           encoding: "utf8",
           env: { ...process.env, ANSIBLE_LOCAL_TEMP: path.join(dir, "tmp") },
-          timeout: 30000,
+          timeout: commandTimeout,
         },
       );
-      expect(out).toContain("playbook:");
+      expect(stdout).toContain("playbook:");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   },
+  commandTimeout + cleanupAllowance,
 );
 
 it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
@@ -48,21 +54,22 @@ it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
       );
       const target = path.join(dir, "playbook.yml");
       await writeFile(target, generateYaml(parsePlaybook(text).playbook));
-      const out = execFileSync(
+      const { stdout } = await executeFile(
         "ansible-playbook",
         ["--syntax-check", "-i", "localhost,", target],
         {
           encoding: "utf8",
           cwd: dir,
           env: { ...process.env, ANSIBLE_LOCAL_TEMP: path.join(dir, "tmp") },
-          timeout: 30000,
+          timeout: commandTimeout,
         },
       );
-      expect(out).toContain("playbook:");
+      expect(stdout).toContain("playbook:");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   },
+  commandTimeout + cleanupAllowance,
 );
 
 it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
@@ -73,17 +80,16 @@ it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
     const dir = await mkdtemp(path.join(tmpdir(), "visual-doc-"));
     try {
       const runner = {
-        execute: async (command: string, args: string[], cwd: string) => ({
-          code: 0,
-          stderr: "",
-          stdout: execFileSync(command, args, {
+        execute: async (command: string, args: string[], cwd: string) => {
+          const { stdout, stderr } = await executeFile(command, args, {
             cwd,
             encoding: "utf8",
             env: { ...process.env, ANSIBLE_LOCAL_TEMP: path.join(dir, "tmp") },
-            timeout: 30000,
+            timeout: commandTimeout,
             maxBuffer: 1_000_000,
-          }),
-        }),
+          });
+          return { code: 0, stdout, stderr };
+        },
       };
       const available = await listModules(runner, "ansible-doc", dir);
       expect(available.some(([fqcn]) => fqcn === "ansible.builtin.debug")).toBe(
@@ -104,4 +110,6 @@ it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
       await rm(dir, { recursive: true, force: true });
     }
   },
+  // One catalog query followed by two module queries, each bounded separately.
+  3 * commandTimeout + cleanupAllowance,
 );
