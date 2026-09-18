@@ -354,11 +354,13 @@
 .properties-form textarea,
 .properties-form select {
   font-size: 12px;
+  font-weight: 700;
 }
 .properties-form input::placeholder,
 .properties-form textarea::placeholder {
   color: #6b7280;
   font-style: italic;
+  font-weight: 400;
   opacity: 1;
 }
 .properties-form .pf-v6-c-check__label {
