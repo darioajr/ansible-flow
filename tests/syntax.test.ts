@@ -84,7 +84,13 @@ it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
           const { stdout, stderr } = await executeFile(command, args, {
             cwd,
             encoding: "utf8",
-            env: { ...process.env, ANSIBLE_LOCAL_TEMP: path.join(dir, "tmp") },
+            env: {
+              ...process.env,
+              ANSIBLE_LOCAL_TEMP: path.join(dir, "tmp"),
+              // This integration covers builtins, not collections installed by the runner image.
+              ANSIBLE_COLLECTIONS_PATH: path.join(dir, "collections"),
+              ANSIBLE_COLLECTIONS_SCAN_SYS_PATH: "false",
+            },
             timeout: commandTimeout,
             maxBuffer: 1_000_000,
           });

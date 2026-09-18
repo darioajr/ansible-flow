@@ -16,7 +16,12 @@ jobs:
       - run: node --test scripts/prepare-marketplace-release.test.mjs
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pipx install ansible-core
+      - name: Install isolated Ansible test tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ansible-test-venv"
+          "$RUNNER_TEMP/ansible-test-venv/bin/python" -m pip install "ansible-core==2.21.3"
+          echo "$RUNNER_TEMP/ansible-test-venv/bin" >> "$GITHUB_PATH"
+      - run: ansible-doc --version
       - run: RUN_ANSIBLE_SYNTAX=1 pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
