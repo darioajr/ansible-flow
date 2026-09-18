@@ -6,8 +6,8 @@ body,
   padding: 0;
 }
 body {
-  background: var(--vscode-editor-background, #fff);
-  color: var(--vscode-editor-foreground, #25364b);
+  background: var(--pf-t--global--background--color--primary--default);
+  color: var(--pf-t--global--text--color--regular);
 }
 .loading,
 .unsupported {
@@ -23,5 +23,5 @@ body {
   min-width: 620px;
 }
 .vscode-editor .editor-eyebrow {
-  color: var(--vscode-descriptionForeground, #6b809c);
+  color: var(--pf-t--global--text--color--subtle);
 }

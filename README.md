@@ -67,6 +67,10 @@ Para validar com Ansible, instale as ferramentas no ambiente do Extension Host e
 
 Veja [comandos, configuração e depuração da extensão](docs/VSCODE.md).
 
+## Temas
+
+O Web oferece **System theme**, **Light theme** e **Dark theme** no cabeçalho, com preferência salva no navegador. A extensão acompanha o tema claro/escuro da janela do VS Code. As interfaces usam os tokens padrão do PatternFly 6, inclusive no canvas e no editor YAML.
+
 ## Trabalhar com o diagrama
 
 1. Configure hosts, variáveis e privilégios em **Play properties**. Clique no fundo do canvas para voltar a esse painel.

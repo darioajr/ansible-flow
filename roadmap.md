@@ -29,6 +29,7 @@ Referências: §§5–18, 28–33, 46–49, 56, 64.1 e 72.
 - [x] Fronteiras entre pacotes verificadas pelo lint.
 - [x] Next.js App Router com PatternFly, React Flow e Zustand.
 - [x] Shell com Projects, Settings e About.
+- [x] Temas claro/escuro padrão PatternFly: preferência persistente e modo sistema no Web; sincronização com a janela do VS Code; canvas e Monaco acompanham o tema.
 - [x] Criar projetos, adicionar playbooks e plays, definir hosts, become e variáveis do play.
 - [x] Catálogo pesquisável e formulários orientados pelos metadados incluídos.
 - [x] Arrastar, mover, conectar, selecionar, duplicar, copiar/colar e remover tarefas.
@@ -209,7 +210,7 @@ Referências: §§49–55 e 73.
 ### Evidências de verificação já obtidas
 
 - Última suíte de engine/API/protocolo: **53 testes passaram**, incluindo syntax-check de roles/recuperação e descoberta real com ansible-doc.
-- Última suíte completa Playwright: **7 testes passaram**, cobrindo Web e Webview, edição de roles/recuperação, novos módulos e catálogo recebido do host.
+- Última suíte completa Playwright: **9 testes passaram**, cobrindo Web e Webview, temas claro/escuro, persistência da preferência, Monaco, edição de roles/recuperação, novos módulos e catálogo recebido do host.
 - Lint e typecheck passaram após a ampliação de compatibilidade, estruturas e catálogo.
 - Os testes nativos do Extension Host foram ampliados e passaram com edição/salvamento de roles e rescue/always. O teste visual em VS Code real também integra a verificação de distribuição.
 - Build de produção e smoke test da edição YAML, aplicação, autosave e reload passaram em container Podman isolado.

@@ -1,12 +1,12 @@
 .visual-editor {
-  --flow-border: #dfe6ef;
-  --flow-muted: #6d8096;
+  --flow-border: var(--pf-t--global--border--color--default);
+  --flow-muted: var(--pf-t--global--text--color--subtle);
   display: flex;
   flex-direction: column;
   height: calc(100dvh - 70px);
   min-height: 560px;
-  background: #fff;
-  color: #263b54;
+  background: var(--pf-t--global--background--color--primary--default);
+  color: var(--pf-t--global--text--color--regular);
   font-family: var(--pf-t--global--font--family--body, sans-serif);
 }
 .visual-editor .muted {
@@ -26,7 +26,7 @@
 .editor-eyebrow {
   font-size: 9px;
   letter-spacing: 1.2px;
-  color: #8194ac;
+  color: var(--pf-t--global--text--color--subtle);
   margin-bottom: 6px;
 }
 .editor-toolbar h1 {
@@ -46,12 +46,12 @@
 }
 .save-status {
   font-size: 11px;
-  color: #7790a9;
+  color: var(--pf-t--global--text--color--subtle);
   white-space: nowrap;
   margin-right: 8px;
 }
 .save-status svg {
-  color: #319878;
+  color: var(--pf-t--global--color--status--success--default);
   margin-right: 4px;
 }
 .editor-subbar {
@@ -89,7 +89,7 @@
   border-right: 1px solid var(--flow-border);
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--pf-t--global--background--color--primary--default);
 }
 .panel-title {
   display: flex;
@@ -97,7 +97,7 @@
   justify-content: space-between;
   padding: 15px 16px;
   min-height: 54px;
-  border-bottom: 1px solid #edf1f6;
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
   font-size: 12px;
   font-weight: 650;
 }
@@ -118,14 +118,14 @@
 .collection-name {
   font-size: 11px;
   font-weight: 600;
-  color: #436b9b;
+  color: var(--pf-t--global--text--color--subtle);
   padding: 16px 9px 4px;
 }
 .catalog-category {
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #8a9bb0;
+  color: var(--pf-t--global--text--color--subtle);
   font-weight: 500;
   padding: 20px 8px 6px;
 }
@@ -140,11 +140,11 @@
   cursor: grab;
 }
 .catalog-item:hover {
-  background: #f4f8ff;
-  border-color: #d8e6f9;
+  background: var(--pf-t--global--background--color--secondary--default);
+  border-color: var(--pf-t--global--border--color--default);
 }
 .catalog-item > svg {
-  color: #7e9fc4;
+  color: var(--pf-t--global--text--color--subtle);
   width: 14px;
   flex-shrink: 0;
 }
@@ -155,12 +155,12 @@
 .catalog-item strong {
   font-size: 12px;
   font-weight: 550;
-  color: #385574;
+  color: var(--pf-t--global--text--color--regular);
 }
 .catalog-item small {
   display: block;
   font-size: 9px;
-  color: #8e9fb3;
+  color: var(--pf-t--global--text--color--subtle);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -168,14 +168,14 @@
 .catalog-item .pf-v6-c-button {
   padding: 4px;
   font-size: 10px;
-  color: #7e9fc4;
+  color: var(--pf-t--global--text--color--subtle);
 }
 .catalog-footer {
   padding: 14px 17px;
   border-top: 1px solid var(--flow-border);
   font-size: 10px;
   line-height: 1.8;
-  color: #8b9db2;
+  color: var(--pf-t--global--text--color--subtle);
   margin: 0;
 }
 .canvas-column {
@@ -183,7 +183,7 @@
   min-width: 160px;
   display: flex;
   flex-direction: column;
-  background: #f7faff;
+  background: var(--pf-t--global--background--color--secondary--default);
 }
 .canvas-topline {
   display: flex;
@@ -191,8 +191,8 @@
   align-items: center;
   font-size: 10px;
   padding: 9px 16px;
-  border-bottom: 1px solid #e9eff7;
-  background: #fbfcfe;
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
+  background: var(--pf-t--global--background--color--secondary--default);
 }
 .canvas-topline .pf-v6-c-button {
   font-size: 10px;
@@ -201,7 +201,7 @@
   display: inline-block;
   width: 6px;
   height: 6px;
-  background: #319c75;
+  background: var(--pf-t--global--color--status--success--default);
   border-radius: 50%;
   margin-right: 5px;
   vertical-align: middle;
@@ -213,14 +213,14 @@
 }
 .task-node {
   width: 246px;
-  background: #fff;
-  border: 1px solid #d4dfed;
+  background: var(--pf-t--global--background--color--primary--default);
+  border: 1px solid var(--pf-t--global--border--color--default);
   border-radius: 8px;
-  box-shadow: 0 3px 8px #2349670c;
+  box-shadow: var(--pf-t--global--box-shadow--sm);
 }
 .task-node.selected {
-  border: 2px solid #1874da;
-  box-shadow: 0 0 0 3px #1874da15;
+  border: 2px solid var(--pf-t--global--border--color--default);
+  box-shadow: var(--pf-t--global--box-shadow--sm);
 }
 .task-header {
   display: flex;
@@ -230,13 +230,13 @@
   font-size: 9px;
   letter-spacing: 0.8px;
   font-weight: 600;
-  color: #8199b7;
+  color: var(--pf-t--global--text--color--subtle);
 }
 .task-icon {
   display: grid;
   place-items: center;
-  background: #edf5ff;
-  color: #4385ce;
+  background: var(--pf-t--global--background--color--secondary--default);
+  color: var(--pf-t--global--text--color--link--default);
   border-radius: 5px;
   width: 23px;
   height: 23px;
@@ -245,7 +245,7 @@
 .task-grip {
   margin-left: auto;
   font-size: 16px;
-  color: #b2c0d0;
+  color: var(--pf-t--global--text--color--subtle);
 }
 .task-name {
   display: block;
@@ -258,7 +258,7 @@
   padding: 8px 14px 14px;
   font-size: 10px;
   font-family: monospace;
-  color: #7c94b0;
+  color: var(--pf-t--global--text--color--subtle);
 }
 .task-badges {
   display: flex;
@@ -267,31 +267,33 @@
 }
 .task-notify {
   font-size: 9px;
-  color: #9a77b5;
-  border-top: 1px solid #eef1f7;
+  color: var(--pf-t--global--text--color--subtle);
+  border-top: 1px solid var(--pf-t--global--border--color--default);
   padding: 8px 14px;
 }
 .react-flow__handle {
   width: 8px !important;
   height: 8px !important;
-  background: #fff !important;
-  border: 2px solid #a2b9d4 !important;
+  background: var(
+    --pf-t--global--background--color--primary--default
+  ) !important;
+  border: 2px solid var(--pf-t--global--border--color--default) !important;
 }
 .react-flow__edge-path {
-  stroke: #99aec9 !important;
+  stroke: var(--pf-t--global--border--color--default) !important;
   stroke-width: 1.5 !important;
 }
 .react-flow__minimap {
   width: 110px !important;
   height: 80px !important;
-  border: 1px solid #e2e9f2;
+  border: 1px solid var(--pf-t--global--border--color--default);
   border-radius: 5px;
 }
 .react-flow__controls {
-  border: 1px solid #dce6f1;
+  border: 1px solid var(--pf-t--global--border--color--default);
   border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 2px 6px #20467515 !important;
+  box-shadow: var(--pf-t--global--box-shadow--sm) !important;
 }
 .canvas-empty {
   position: absolute;
@@ -304,18 +306,18 @@
 }
 .canvas-empty > svg {
   font-size: 32px;
-  color: #91afd3;
+  color: var(--pf-t--global--text--color--subtle);
   margin-bottom: 18px;
 }
 .canvas-empty h3 {
   font-size: 15px;
   font-weight: 600;
-  color: #58718e;
+  color: var(--pf-t--global--text--color--subtle);
   margin-bottom: 8px;
 }
 .canvas-empty p {
   font-size: 12px;
-  color: #91a2b7;
+  color: var(--pf-t--global--text--color--subtle);
   line-height: 1.8;
 }
 .canvas-caption {
@@ -323,7 +325,7 @@
   bottom: 14px;
   left: 54px;
   pointer-events: none;
-  color: #94a6bc;
+  color: var(--pf-t--global--text--color--subtle);
   font-size: 9px;
 }
 .properties {
@@ -331,15 +333,15 @@
   flex-shrink: 0;
   border-left: 1px solid var(--flow-border);
   overflow-y: auto;
-  background: #fff;
+  background: var(--pf-t--global--background--color--primary--default);
 }
 .property-module {
   font-family: monospace;
   font-size: 10px;
-  color: #6486af;
-  background: #f7f9fd;
+  color: var(--pf-t--global--text--color--subtle);
+  background: var(--pf-t--global--background--color--secondary--default);
   padding: 13px 18px;
-  border-bottom: 1px solid #eaf0f7;
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
 }
 .properties-form {
   padding: 18px;
@@ -347,7 +349,7 @@
 }
 .properties-form .pf-v6-c-form__label-text {
   font-size: 11px;
-  color: #59708c;
+  color: var(--pf-t--global--text--color--subtle);
   font-weight: 550;
 }
 .properties-form input,
@@ -358,7 +360,7 @@
 }
 .properties-form input::placeholder,
 .properties-form textarea::placeholder {
-  color: #6b7280;
+  color: var(--pf-t--global--text--color--subtle);
   font-style: italic;
   font-weight: 400;
   opacity: 1;
@@ -372,17 +374,17 @@
 .form-section {
   font-size: 9px;
   letter-spacing: 1.1px;
-  color: #8c9fb6;
+  color: var(--pf-t--global--text--color--subtle);
   font-weight: 650;
-  border-top: 1px solid #e7edf5;
+  border-top: 1px solid var(--pf-t--global--border--color--default);
   padding-top: 20px;
 }
 .property-note {
-  background: #f1f6fd;
+  background: var(--pf-t--global--background--color--secondary--default);
   border-radius: 5px;
   padding: 14px;
   font-size: 11px;
-  color: #7990ad;
+  color: var(--pf-t--global--text--color--subtle);
   line-height: 1.8;
 }
 .json-field {
@@ -396,7 +398,7 @@
   overflow-y: auto;
 }
 .field-error {
-  color: #b82434;
+  color: var(--pf-t--global--color--status--danger--default);
   font-size: 11px;
 }
 .advanced-fields {
@@ -407,7 +409,7 @@
 }
 .properties-form summary {
   font-size: 12px;
-  color: #6083ab;
+  color: var(--pf-t--global--text--color--subtle);
   cursor: pointer;
 }
 .yaml-panel {
@@ -426,7 +428,7 @@
 }
 .yaml-footer {
   padding: 12px 16px;
-  color: #899db5;
+  color: var(--pf-t--global--text--color--subtle);
   font-size: 10px;
   border-top: 1px solid var(--flow-border);
 }
@@ -447,13 +449,13 @@
 .shortcut-hint {
   margin-left: auto;
   font-size: 9px;
-  color: #90a0b5;
+  color: var(--pf-t--global--text--color--subtle);
 }
 .problem-list {
   max-height: 160px;
   overflow: auto;
   padding: 8px 18px;
-  border-top: 1px solid #edf1f7;
+  border-top: 1px solid var(--pf-t--global--border--color--default);
 }
 .problem-row {
   display: flex;
@@ -462,30 +464,30 @@
   width: 100%;
   padding: 7px 0;
   border: 0;
-  border-bottom: 1px solid #f0f3f8;
-  background: white;
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
+  background: var(--pf-t--global--background--color--primary--default);
   font: inherit;
   font-size: 11px;
   text-align: left;
-  color: #617a96;
+  color: var(--pf-t--global--text--color--subtle);
   cursor: pointer;
 }
 .problem-row:hover {
-  background: #f5f9ff;
+  background: var(--pf-t--global--background--color--secondary--default);
 }
 .validation-success {
   display: flex;
   gap: 8px;
   align-items: center;
   font-size: 12px;
-  color: #368561;
+  color: var(--pf-t--global--color--status--success--default);
   padding: 10px;
 }
 .empty-note {
   padding: 24px;
   text-align: center;
   font-size: 12px;
-  color: #8096ad;
+  color: var(--pf-t--global--text--color--subtle);
 }
 @media (min-width: 1700px) {
   .properties {
@@ -564,7 +566,7 @@
 
 .yaml-actions {
   padding: 12px;
-  border-top: 1px solid #dce5f0;
+  border-top: 1px solid var(--pf-t--global--border--color--default);
   max-height: 35%;
   overflow: auto;
 }
@@ -576,4 +578,33 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: inherit;
+}
+
+/* React Flow controls and minimap use the same palette as PatternFly. */
+.react-flow {
+  --xy-background-color: var(
+    --pf-t--global--background--color--secondary--default
+  );
+  --xy-controls-button-background-color: var(
+    --pf-t--global--background--color--primary--default
+  );
+  --xy-controls-button-background-color-hover: var(
+    --pf-t--global--background--color--primary--hover
+  );
+  --xy-controls-button-color: var(--pf-t--global--text--color--regular);
+  --xy-controls-button-border-color: var(
+    --pf-t--global--border--color--default
+  );
+  --xy-minimap-background-color: var(
+    --pf-t--global--background--color--primary--default
+  );
+  --xy-minimap-node-background-color: var(
+    --pf-t--global--border--color--default
+  );
+  --xy-minimap-mask-background-color: var(
+    --pf-t--global--background--color--backdrop--default
+  );
+}
+.task-node.selected {
+  border-color: var(--pf-t--global--border--color--brand--default);
 }

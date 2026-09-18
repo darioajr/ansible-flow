@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ThemeSelect } from "./theme-select";
 import { usePathname } from "next/navigation";
 import {
   Page,
@@ -40,6 +41,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Label isCompact color="blue">
               Local workspace
             </Label>
+            <ThemeSelect />
             <span className="avatar">PF</span>
           </MastheadContent>
         </Masthead>

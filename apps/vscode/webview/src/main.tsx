@@ -16,6 +16,22 @@ declare function acquireVsCodeApi(): {
 };
 const vscode = acquireVsCodeApi();
 function App() {
+  useEffect(() => {
+    const update = () => {
+      const dark =
+        document.body.classList.contains("vscode-dark") ||
+        document.body.classList.contains("vscode-high-contrast");
+      document.documentElement.classList.toggle("pf-v6-theme-dark", dark);
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
   const [project, setProject] = useState<Project | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [catalog, setCatalog] = useState<ModuleMetadata[]>(modules);

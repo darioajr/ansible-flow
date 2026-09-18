@@ -1,3 +1,4 @@
+import { useDarkTheme } from "./theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
@@ -84,6 +85,7 @@ function Task({ data, selected }: NodeProps<TaskNode>) {
 }
 const nodeTypes = { task: Task };
 function Flow() {
+  const dark = useDarkTheme();
   const s = useEditor();
   const ref = useRef<HTMLDivElement>(null);
   const { fitView, screenToFlowPosition } = useReactFlow();
@@ -167,6 +169,7 @@ function Flow() {
       }}
     >
       <ReactFlow
+        colorMode={dark ? "dark" : "light"}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -205,7 +208,11 @@ function Flow() {
         snapToGrid
         snapGrid={[16, 16]}
       >
-        <Background gap={24} size={1.2} color="#d6e0ed" />
+        <Background
+          gap={24}
+          size={1.2}
+          color="var(--pf-t--global--border--color--default)"
+        />
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable />
       </ReactFlow>

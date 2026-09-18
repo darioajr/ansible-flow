@@ -33,6 +33,10 @@ The bundled catalog includes **20 modules**, covering common package, file, serv
 
 Use the individual argument fields for everyday edits or **All arguments (JSON object)** for more complex values. In a trusted workspace, discover additional installed modules through `ansible-doc` and load their forms into the catalog.
 
+### Light and dark themes
+
+The editor follows your VS Code window theme automatically, including changes made while it is open. Both modes use the standard PatternFly 6 palette across the catalog, task canvas, properties, diagnostics, and YAML preview.
+
 ### Native VS Code workflow
 
 - Edit the actual workspace file, with native dirty state, save, and undo/redo.
