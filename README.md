@@ -30,7 +30,8 @@ Alternativa: VS Code → Extensions → **Install from VSIX…**. Abra seu works
 - Conecte uma saída à entrada de outra tarefa: o destino passa a executar logo após a origem. As arestas representam uma sequência, sem ciclos ou branching.
 - Use **Block → Edit block tasks** para filhos, **Condition** e **Loop** para presets de comportamento. O módulo pode ser alterado.
 - Defina handlers na aba **Handlers** e referencie seus nomes em **Notify handlers**.
-- Use **YAML preview**, **Validate**, **Save** e, no Web, **Export YAML**.
+- Use **YAML editor** (Web) ou **YAML preview** (VS Code), **Validate**, **Save** e, no Web, **Export YAML**.
+- No Web, **YAML editor** permite editar: altere o texto e clique em **Apply to diagram**. A aplicação valida o YAML, atualiza o diagrama e salva automaticamente. **Discard draft** retorna ao YAML atual do diagrama. Enquanto houver rascunho, a edição visual e a troca de playbook ficam pausadas; salvar ou sair pelos links exige aplicar ou descartar. Erros mantêm o texto para correção. Aplicar recalcula o layout do playbook ativo e pode ser desfeito/refeito; os demais playbooks não são alterados.
 
 Os 15 módulos builtin previstos estão disponíveis. Campos complexos (loops, variáveis, environment, set_fact) usam JSON. Ctrl/Cmd+Z, Shift+Z, C, V, D, S e F, Delete, seleção múltipla e minimapa estão implementados. Clipboard é interno ao editor. O Web mantém 100 snapshots e autosave após 1 segundo; o VS Code usa o histórico e estado dirty nativos do documento.
 

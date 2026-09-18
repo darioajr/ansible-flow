@@ -19,6 +19,33 @@ const fixture = readFileSync(
   new URL("./fixtures/nginx.yml", import.meta.url),
   "utf8",
 );
+it("applies YAML atomically, preserves other books and supports undo/redo", () => {
+  const project = newProject("YAML edit");
+  const other = newPlaybook("other.yml");
+  project.playbooks.push(other);
+  const store = createEditorStore(project);
+  store.getState().applyYaml(fixture);
+  const applied = store.getState().project;
+  expect(applied.playbooks[0].id).toBe(project.playbooks[0].id);
+  expect(applied.playbooks[1]).toEqual(other);
+  expect(currentPlay(store.getState())!.tasks.length).toBeGreaterThan(0);
+  expect(generateYaml(applied.playbooks[0])).toContain("nginx");
+  store.getState().undo();
+  expect(store.getState().project).toEqual(project);
+  store.getState().redo();
+  expect(store.getState().project).toEqual(applied);
+});
+it.each([
+  "- hosts: [",
+  "- hosts: all\n  roles: [web]\n",
+  "- hosts: all\n  vars: {password: literal}\n  tasks: []\n",
+  "- hosts: all\n  tasks:\n    - ansible.builtin.service: {name: nginx}\n",
+])("rejects invalid YAML without changing diagram or history: %s", (text) => {
+  const store = createEditorStore(newProject("YAML edit"));
+  const before = store.getState();
+  expect(() => store.getState().applyYaml(text)).toThrow();
+  expect(store.getState()).toBe(before);
+});
 describe("shared Ansible engine", () => {
   it("imports and exports the nginx demo without losing semantics", () => {
     const result = parsePlaybook(fixture);

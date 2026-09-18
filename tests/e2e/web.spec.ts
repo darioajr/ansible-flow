@@ -77,7 +77,7 @@ test("Web: create, configure, connect, save, reload and export", async ({
   await expect(page.locator(".react-flow__node")).toHaveCount(2);
   await page.getByRole("button", { name: "Validate", exact: true }).click();
   await expect(page.getByText("No AIR validation problems.")).toBeVisible();
-  await page.getByRole("button", { name: "YAML preview", exact: true }).click();
+  await page.getByRole("button", { name: "YAML editor", exact: true }).click();
   await expect(page.locator(".monaco-editor")).toBeVisible();
   const event = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export YAML" }).click();
@@ -155,4 +155,83 @@ test("Web flushes pending edits before navigating away", async ({ page }) => {
     (await (await page.request.get(`/api/v1/projects/${p.id}`)).json())
       .playbooks[0].plays[0].hosts,
   ).toBe("staging");
+});
+
+test("Web: edit YAML, reject errors, apply, undo and persist both directions", async ({
+  page,
+}) => {
+  const project = await (
+    await page.request.post("/api/v1/projects", {
+      data: { name: `YAML ${Date.now()}` },
+    })
+  ).json();
+  await page.goto(`/editor/${project.id}`);
+  await page.getByRole("button", { name: "YAML editor", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "Editor content" });
+  const edit = async (text: string) => {
+    await input.focus();
+    await page.keyboard.press("ControlOrMeta+A");
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.evaluate((value) => navigator.clipboard.writeText(value), text);
+    await page.keyboard.press("ControlOrMeta+V");
+  };
+  await edit("- hosts: [");
+  await page.getByRole("button", { name: "Apply to diagram" }).click();
+  await expect(page.getByText("YAML could not be applied")).toBeVisible();
+  await expect(page.locator(".react-flow__node")).toHaveCount(0);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page.getByText(
+      "Apply YAML to the diagram or discard the draft before saving or leaving.",
+    ),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Projects", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/editor/${project.id}$`));
+  await edit(
+    "# Edited in YAML\n- name: YAML play\n  hosts: webservers\n  tasks:\n    - name: Hello from YAML\n      ansible.builtin.debug:\n        msg: hello\n",
+  );
+  await page.getByRole("button", { name: "Apply to diagram" }).click();
+  await expect(page.locator(".react-flow__node")).toContainText(
+    "Hello from YAML",
+  );
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(0);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".save-status")).toHaveText(/Saved/);
+  await page.reload();
+  await expect(page.locator(".react-flow__node")).toContainText(
+    "Hello from YAML",
+  );
+  await page.locator(".react-flow__node").click();
+  await page
+    .getByRole("textbox", { name: "Task name", exact: true })
+    .fill("Changed visually");
+  await page.getByRole("button", { name: "YAML editor", exact: true }).click();
+  await expect(page.locator(".monaco-editor")).toContainText(
+    "Changed visually",
+  );
+  await edit("- hosts: all\n  roles: [unsupported]\n");
+  await page.getByRole("button", { name: "Apply to diagram" }).click();
+  await expect(page.getByText("YAML could not be applied")).toBeVisible();
+  await page.getByRole("button", { name: "Discard draft" }).click();
+  await expect(page.locator(".monaco-editor")).toContainText(
+    "Changed visually",
+  );
+  await expect(
+    page.getByRole("button", { name: "Apply to diagram" }),
+  ).toBeDisabled();
+  await expect(page.locator(".save-status")).toHaveText(/Saved/);
+  await expect(
+    page.getByText(
+      "Apply YAML to the diagram or discard the draft before saving or leaving.",
+    ),
+  ).not.toBeVisible();
+  await page.screenshot({
+    path: "test-results/yaml-editor.png",
+    fullPage: true,
+  });
 });

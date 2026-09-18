@@ -1,4 +1,6 @@
 import { createStore } from "zustand/vanilla";
+import { parsePlaybook } from "@visual-ansible/parser";
+import { assertProject, validatePlaybook } from "@visual-ansible/validator";
 import {
   newPlaybook,
   walk,
@@ -39,6 +41,7 @@ export interface State {
   undo: () => void;
   redo: () => void;
   addBook: (name: string) => void;
+  applyYaml: (text: string) => void;
 }
 export const currentPlay = (s: Pick<State, "project" | "bookId" | "playId">) =>
   s.project.playbooks
@@ -80,6 +83,38 @@ export function createEditorStore(project: Project) {
     future: [],
     clipboard: [],
     change: 0,
+    applyYaml: (text) => {
+      const s = get();
+      const old = s.project.playbooks.find((b) => b.id === s.bookId)!;
+      const result = parsePlaybook(text, old.name);
+      const errors = [
+        ...result.problems,
+        ...validatePlaybook(result.playbook),
+      ].filter((p) => p.severity === "error");
+      if (!result.editable || errors.length)
+        throw new Error(
+          errors
+            .map((p) => `${p.line ? `Line ${p.line}: ` : ""}${p.message}`)
+            .join("\n") || "Unsupported YAML.",
+        );
+      const book = { ...result.playbook, id: old.id };
+      const project = structuredClone(s.project);
+      project.playbooks = project.playbooks.map((b) =>
+        b.id === old.id ? book : b,
+      );
+      for (const play of old.plays)
+        for (const node of walk([...play.tasks, ...play.handlers]))
+          delete project.layout[node.id];
+      assertProject(project);
+      set({
+        project,
+        ...navigation(project, s),
+        selection: [],
+        past: [...s.past, s.project].slice(-100),
+        future: [],
+        change: s.change + 1,
+      });
+    },
     edit: (fn) => {
       const s = get();
       const p = structuredClone(s.project);

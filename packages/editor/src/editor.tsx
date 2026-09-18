@@ -80,6 +80,19 @@ export function VisualEditor({
   const [status, setStatus] = useState("Saved");
   const [error, setError] = useState("");
   const [yamlOpen, setYamlOpen] = useState(false);
+  const [yamlDraft, setYamlDraft] = useState<string | null>(null);
+  const [yamlError, setYamlError] = useState("");
+  const yamlPending = useRef(false);
+  const hasYamlDraft = yamlDraft !== null;
+  const changeYaml = (text: string | null) => {
+    yamlPending.current = text !== null;
+    setYamlDraft(text);
+    setYamlError("");
+    if (text === null)
+      setError((message) =>
+        message.startsWith("Apply YAML to the diagram") ? "" : message,
+      );
+  };
   const [problemsOpen, setProblemsOpen] = useState(false);
   const [runtimeProblems, setRuntimeProblems] = useState<Problem[]>([]);
   const [modal, setModal] = useState<"book" | "play" | null>(null);
@@ -95,6 +108,12 @@ export function VisualEditor({
   }, [initial, store]);
   const save = useCallback(() => {
     const action = async () => {
+      if (yamlPending.current) {
+        const message =
+          "Apply YAML to the diagram or discard the draft before saving or leaving.";
+        setError(message);
+        throw new Error(message);
+      }
       const current = store.getState();
       const revision = current.change;
       setStatus("Saving…");
@@ -119,28 +138,28 @@ export function VisualEditor({
     if (!s.change) return;
     host.changed?.(s.project);
     setStatus("Modified");
-    if (!host.autosave || blocked.current) return;
+    if (!host.autosave || blocked.current || hasYamlDraft) return;
     const timer = setTimeout(() => {
       void save().catch(() => {});
     }, 1000);
     return () => clearTimeout(timer);
-  }, [s.change, s.project, host, save]);
+  }, [s.change, s.project, host, save, hasYamlDraft]);
   useEffect(
     () =>
       host.bindNavigation?.(
         save,
-        () => store.getState().change !== saved.current,
+        () => yamlPending.current || store.getState().change !== saved.current,
       ),
     [host, save, store],
   );
-  const undo = useCallback(
-    () => (host.undo ? host.undo() : store.getState().undo()),
-    [host, store],
-  );
-  const redo = useCallback(
-    () => (host.redo ? host.redo() : store.getState().redo()),
-    [host, store],
-  );
+  const undo = useCallback(() => {
+    if (!yamlPending.current)
+      return host.undo ? host.undo() : store.getState().undo();
+  }, [host, store]);
+  const redo = useCallback(() => {
+    if (!yamlPending.current)
+      return host.redo ? host.redo() : store.getState().redo();
+  }, [host, store]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -155,7 +174,7 @@ export function VisualEditor({
         target.matches?.("input,textarea,select") ||
         target.isContentEditable ||
         target.closest?.(".monaco-editor");
-      if (input) return;
+      if (input || yamlPending.current) return;
       const state = store.getState();
       if (mod) {
         if (["z", "c", "v", "d", "f"].includes(key)) e.preventDefault();
@@ -176,7 +195,10 @@ export function VisualEditor({
       }
     };
     const unload = (e: BeforeUnloadEvent) => {
-      if (host.kind === "web" && store.getState().change !== saved.current)
+      if (
+        host.kind === "web" &&
+        (yamlPending.current || store.getState().change !== saved.current)
+      )
         e.preventDefault();
     };
     window.addEventListener("keydown", listener);
@@ -255,7 +277,7 @@ export function VisualEditor({
             <Button
               variant="plain"
               aria-label="Undo"
-              isDisabled={!host.undo && !s.past.length}
+              isDisabled={yamlDraft !== null || (!host.undo && !s.past.length)}
               onClick={undo}
             >
               <UndoIcon />
@@ -263,7 +285,9 @@ export function VisualEditor({
             <Button
               variant="plain"
               aria-label="Redo"
-              isDisabled={!host.redo && !s.future.length}
+              isDisabled={
+                yamlDraft !== null || (!host.redo && !s.future.length)
+              }
               onClick={redo}
             >
               <RedoIcon />
@@ -278,6 +302,7 @@ export function VisualEditor({
             <Button
               variant="secondary"
               icon={<CheckCircleIcon />}
+              isDisabled={yamlDraft !== null}
               onClick={() => void validate()}
             >
               Validate
@@ -309,6 +334,7 @@ export function VisualEditor({
           <div className="play-pickers">
             <FormSelect
               aria-label="Active playbook"
+              isDisabled={yamlDraft !== null}
               value={book.id}
               onChange={(_, id) => {
                 const b = s.project.playbooks.find((b) => b.id === id)!;
@@ -322,6 +348,7 @@ export function VisualEditor({
             {host.kind === "web" && (
               <Button
                 variant="plain"
+                isDisabled={yamlDraft !== null}
                 aria-label="New playbook"
                 onClick={() => {
                   setName("");
@@ -342,6 +369,7 @@ export function VisualEditor({
             </FormSelect>
             <Button
               variant="plain"
+              isDisabled={yamlDraft !== null}
               aria-label="New play"
               onClick={() => {
                 setName("");
@@ -368,14 +396,17 @@ export function VisualEditor({
             className="yaml-toggle"
             variant={yamlOpen ? "secondary" : "plain"}
             icon={<CodeIcon />}
+            isDisabled={yamlDraft !== null}
             onClick={() => setYamlOpen((v) => !v)}
           >
-            YAML preview
+            {host.kind === "web" ? "YAML editor" : "YAML preview"}
           </Button>
         </div>
         <div className="editor-panels">
-          <Catalog />
-          <div className="canvas-column">
+          <div style={{ display: "contents" }} inert={yamlDraft !== null}>
+            <Catalog />
+          </div>
+          <div className="canvas-column" inert={yamlDraft !== null}>
             <div className="canvas-topline">
               <span>
                 <i className="status-dot" />{" "}
@@ -391,9 +422,10 @@ export function VisualEditor({
           {yamlOpen ? (
             <aside className="yaml-panel">
               <div className="panel-title">
-                Generated YAML{" "}
+                {host.kind === "web" ? "Edit YAML" : "Generated YAML"}{" "}
                 <Button
                   variant="plain"
+                  isDisabled={yamlDraft !== null}
                   aria-label="Close YAML preview"
                   onClick={() => setYamlOpen(false)}
                 >
@@ -402,9 +434,59 @@ export function VisualEditor({
               </div>
               <div className="yaml-content">
                 <Suspense fallback={<Spinner />}>
-                  <Yaml code={yaml} assetBase={host.assetBase} />
+                  <Yaml
+                    code={yamlDraft ?? yaml}
+                    assetBase={host.assetBase}
+                    onChange={
+                      host.kind === "web"
+                        ? (text) => changeYaml(text === yaml ? null : text)
+                        : undefined
+                    }
+                  />
                 </Suspense>
               </div>
+              {host.kind === "web" && (
+                <div className="yaml-actions">
+                  <p>
+                    {yamlDraft !== null
+                      ? "Unapplied draft · diagram paused"
+                      : "Edit YAML, then apply to update the diagram."}
+                  </p>
+                  {yamlError && (
+                    <Alert
+                      isInline
+                      variant="danger"
+                      title="YAML could not be applied"
+                    >
+                      <pre>{yamlError}</pre>
+                    </Alert>
+                  )}
+                  <Button
+                    size="sm"
+                    isDisabled={yamlDraft === null}
+                    onClick={() => {
+                      try {
+                        s.applyYaml(yamlDraft!);
+                        changeYaml(null);
+                        setError("");
+                        setRuntimeProblems([]);
+                      } catch (e) {
+                        setYamlError((e as Error).message);
+                      }
+                    }}
+                  >
+                    Apply to diagram
+                  </Button>{" "}
+                  <Button
+                    size="sm"
+                    variant="link"
+                    isDisabled={yamlDraft === null}
+                    onClick={() => changeYaml(null)}
+                  >
+                    Discard draft
+                  </Button>
+                </div>
+              )}
               <div className="yaml-footer">
                 Standard Ansible ·{" "}
                 {errors.length ? `${errors.length} errors` : "ready to export"}
@@ -441,6 +523,7 @@ export function VisualEditor({
               ) : (
                 problems.map((p, i) => (
                   <button
+                    disabled={yamlDraft !== null}
                     className="problem-row"
                     key={i}
                     onClick={() => {
