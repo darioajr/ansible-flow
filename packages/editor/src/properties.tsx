@@ -350,6 +350,7 @@ function TaskProperties({ node }: { node: AutomationNode }) {
             {module && (
               <JsonField
                 label="All arguments (JSON object)"
+                expandToContent
                 object
                 value={node.module?.args}
                 change={(args) =>
