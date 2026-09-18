@@ -1,0 +1,367 @@
+# Demonstração visual: somente debug e set_fact; não instala nem altera serviços.
+# No play 02, simulate_canary_failure: true demonstra o caminho rescue.
+# Troque para false para demonstrar o caminho de sucesso.
+---
+- name: 01 | Planejamento e preparação da infraestrutura
+  hosts: localhost
+  vars:
+    deployment_environment: staging
+    release_version: 2.4.0
+    enable_monitoring: true
+    enable_backup: true
+    regions:
+      - sa-east-1
+      - us-east-1
+    services:
+      - frontend
+      - api
+      - worker
+    simulate_network_failure: false
+  pre_tasks:
+    - name: Apresentar implantação
+      ansible.builtin.debug:
+        msg: Ambiente {{ deployment_environment }} — versão {{ release_version }}
+    - name: Inicializar controle
+      ansible.builtin.set_fact:
+        deployment_ready: false
+        preparation_status: started
+    - name: Listar serviços previstos
+      ansible.builtin.debug:
+        msg: Preparar {{ item }}
+      loop: "{{ services }}"
+  tasks:
+    - name: Validar requisitos e capacidade
+      block:
+        - name: Conferir conectividade
+          ansible.builtin.debug:
+            msg: Simular acesso aos hosts
+          failed_when: simulate_network_failure | bool
+        - name: Conferir capacidade por região
+          ansible.builtin.debug:
+            msg: Capacidade disponível em {{ item }}
+          loop: "{{ regions }}"
+        - name: Validar dependências da aplicação
+          block:
+            - name: Conferir banco de dados
+              ansible.builtin.debug:
+                msg: PostgreSQL disponível
+            - name: Conferir cache
+              ansible.builtin.debug:
+                msg: Redis disponível
+            - name: Conferir armazenamento
+              ansible.builtin.debug:
+                msg: Bucket de artefatos disponível
+          rescue:
+            - name: Registrar dependência indisponível
+              ansible.builtin.debug:
+                msg: Revisar conexões antes de continuar
+          always:
+            - name: Consolidar dependências
+              ansible.builtin.debug:
+                msg: Verificação das dependências finalizada
+      rescue:
+        - name: Marcar preparação degradada
+          ansible.builtin.set_fact:
+            preparation_status: degraded
+        - name: Notificar falha de conectividade
+          ansible.builtin.debug:
+            msg: A simulação detectou uma falha de rede
+      always:
+        - name: Registrar resultado de capacidade
+          ansible.builtin.debug:
+            msg: Etapa de capacidade encerrada
+    - name: Planejar segmentação de rede
+      block:
+        - name: Planejar redes privadas
+          ansible.builtin.debug:
+            msg: Criar sub-redes em {{ item }}
+          loop: "{{ regions }}"
+        - name: Planejar regras de entrada
+          ansible.builtin.debug:
+            msg: Liberar HTTPS e acesso interno à API
+        - name: Planejar resolução de nomes
+          ansible.builtin.debug:
+            msg: Configurar app.{{ deployment_environment }}.example.test
+      always:
+        - name: Auditar planejamento de rede
+          ansible.builtin.debug:
+            msg: Plano de rede revisado
+    - name: Preparar observabilidade
+      block:
+        - name: Planejar coleta de métricas
+          ansible.builtin.debug:
+            msg: Habilitar métricas de frontend, API e worker
+        - name: Planejar logs estruturados
+          ansible.builtin.debug:
+            msg: Centralizar logs com identificação de release
+        - name: Planejar alertas
+          ansible.builtin.debug:
+            msg: Configurar alertas de latência e disponibilidade
+      always:
+        - name: Concluir observabilidade
+          ansible.builtin.debug:
+            msg: Configuração de observabilidade planejada
+      when: enable_monitoring | bool
+    - name: Planejar cópia de segurança
+      ansible.builtin.debug:
+        msg: Snapshot anterior à implantação
+      when: enable_backup | bool
+    - name: Liberar próxima etapa
+      ansible.builtin.set_fact:
+        deployment_ready: true
+        preparation_status: completed
+  post_tasks:
+    - name: Exibir resumo da preparação
+      ansible.builtin.debug:
+        msg: "Preparação: {{ preparation_status }}; liberação: {{ deployment_ready }}"
+    - name: Notificar revisão do plano
+      ansible.builtin.debug:
+        msg: Plano aprovado para demonstração
+      changed_when: true
+      notify: Registrar aprovação do plano
+  handlers:
+    - name: Registrar aprovação do plano
+      ansible.builtin.debug:
+        msg: "Handler: aprovação registrada"
+- name: 02 | Implantação com canário, recuperação e rollback
+  hosts: localhost
+  vars:
+    release_version: 2.4.0
+    previous_release: 2.3.9
+    simulate_canary_failure: true
+    simulate_rollback_failure: false
+    enable_smoke_tests: true
+    services:
+      - frontend
+      - api
+      - worker
+    traffic_steps:
+      - 10
+      - 25
+      - 50
+      - 100
+  pre_tasks:
+    - name: Inicializar estado da implantação
+      ansible.builtin.set_fact:
+        active_release: 2.3.9
+        rollout_status: pending
+    - name: Conferir artefatos da release
+      ansible.builtin.debug:
+        msg: Artefatos da versão {{ release_version }} disponíveis
+    - name: Reservar janela de mudança
+      ansible.builtin.debug:
+        msg: Janela de implantação iniciada
+  tasks:
+    - name: Preparar nova release
+      block:
+        - name: Simular download dos artefatos
+          ansible.builtin.debug:
+            msg: Baixar pacote de {{ item }}:{{ release_version }}
+          loop: "{{ services }}"
+          register: artifact_results
+        - name: Verificar integridade dos artefatos
+          ansible.builtin.debug:
+            msg: Assinatura e checksums conferidos
+        - name: Preparar configuração por serviço
+          ansible.builtin.debug:
+            msg: Renderizar configuração de {{ item }}
+          loop: "{{ services }}"
+        - name: Preparar migração compatível
+          ansible.builtin.debug:
+            msg: Simular migração sem remover campos existentes
+      rescue:
+        - name: Descartar release incompleta
+          ansible.builtin.debug:
+            msg: Nenhum tráfego será direcionado à release incompleta
+      always:
+        - name: Registrar preparação dos artefatos
+          ansible.builtin.debug:
+            msg: Verificação de artefatos concluída
+    - name: Executar rollout com recuperação
+      block:
+        - name: Ativar instância canário
+          ansible.builtin.debug:
+            msg: Iniciar {{ release_version }} com 10% do tráfego
+        - name: Executar testes do canário
+          block:
+            - name: Testar endpoint de saúde
+              ansible.builtin.debug:
+                msg: "GET /health: disponível"
+            - name: Testar autenticação
+              ansible.builtin.debug:
+                msg: Login sintético aprovado
+            - name: Testar fluxo de compra
+              ansible.builtin.debug:
+                msg: Compra sintética aprovada
+          always:
+            - name: Consolidar evidências do canário
+              ansible.builtin.debug:
+                msg: Resultados dos testes registrados
+          when: enable_smoke_tests | bool
+        - name: Avaliar qualidade do canário
+          ansible.builtin.debug:
+            msg: "Falha simulada: {{ simulate_canary_failure }}"
+          failed_when: simulate_canary_failure | bool
+        - name: Expandir tráfego progressivamente
+          ansible.builtin.debug:
+            msg: Encaminhar {{ item }}% para {{ release_version }}
+          loop: "{{ traffic_steps }}"
+        - name: Confirmar nova release
+          ansible.builtin.set_fact:
+            active_release: "{{ release_version }}"
+            rollout_status: success
+        - name: Solicitar atualização dos serviços
+          ansible.builtin.debug:
+            msg: Release promovida
+          changed_when: true
+          notify:
+            - Registrar reload da aplicação
+            - Registrar atualização do cache
+      rescue:
+        - name: Congelar expansão de tráfego
+          ansible.builtin.debug:
+            msg: Qualidade abaixo do esperado; interromper promoção
+        - name: Restaurar release anterior
+          block:
+            - name: Redirecionar tráfego para versão estável
+              ansible.builtin.debug:
+                msg: Retornar tráfego para {{ previous_release }}
+            - name: Validar rollback
+              ansible.builtin.debug:
+                msg: "Falha simulada de rollback: {{ simulate_rollback_failure }}"
+              failed_when: simulate_rollback_failure | bool
+            - name: Registrar rollback bem-sucedido
+              ansible.builtin.set_fact:
+                active_release: "{{ previous_release }}"
+                rollout_status: rolled_back
+            - name: Solicitar registro do rollback
+              ansible.builtin.debug:
+                msg: Rollback concluído
+              changed_when: true
+              notify: Registrar incidente de implantação
+          rescue:
+            - name: Registrar necessidade de intervenção
+              ansible.builtin.set_fact:
+                rollout_status: manual_intervention
+            - name: Acionar operação manual
+              ansible.builtin.debug:
+                msg: Falha simulada no rollback; revisão humana necessária
+          always:
+            - name: Auditar recuperação
+              ansible.builtin.debug:
+                msg: "Estado após recuperação: {{ rollout_status }}"
+        - name: Preservar evidências da falha
+          ansible.builtin.debug:
+            msg: Logs e resultados da release {{ release_version }} preservados
+      always:
+        - name: Liberar janela de mudança
+          ansible.builtin.debug:
+            msg: Janela de implantação encerrada
+        - name: Publicar estado final
+          ansible.builtin.debug:
+            msg: "Release ativa: {{ active_release }}; resultado: {{ rollout_status }}"
+    - name: Conferir serviços após implantação
+      ansible.builtin.debug:
+        msg: Serviço {{ item }} verificado
+      loop: "{{ services }}"
+  post_tasks:
+    - name: Publicar relatório da implantação
+      ansible.builtin.debug:
+        msg: "Resultado: {{ rollout_status }}"
+    - name: Registrar promoção aprovada
+      ansible.builtin.debug:
+        msg: Nova versão ativa
+      when: rollout_status == 'success'
+    - name: Registrar release revertida
+      ansible.builtin.debug:
+        msg: Versão anterior preservada
+      when: rollout_status == 'rolled_back'
+  handlers:
+    - name: Registrar reload da aplicação
+      ansible.builtin.debug:
+        msg: "Handler: simular reload dos serviços"
+    - name: Registrar atualização do cache
+      ansible.builtin.debug:
+        msg: "Handler: simular invalidação do cache"
+    - name: Registrar incidente de implantação
+      ansible.builtin.debug:
+        msg: "Handler: registrar incidente e rollback"
+- name: 03 | Auditoria e fechamento operacional
+  hosts: localhost
+  vars:
+    audit_targets:
+      - segurança
+      - disponibilidade
+      - observabilidade
+      - backup
+    notify_operations: true
+  pre_tasks:
+    - name: Abrir auditoria
+      ansible.builtin.debug:
+        msg: Iniciar auditoria da demonstração
+    - name: Inicializar relatório
+      ansible.builtin.set_fact:
+        audit_status: running
+  tasks:
+    - name: Auditar controles de segurança
+      block:
+        - name: Revisar permissões
+          ansible.builtin.debug:
+            msg: Conferir acesso mínimo aos serviços
+        - name: Revisar exposição de rede
+          ansible.builtin.debug:
+            msg: Conferir portas e regras de entrada
+        - name: Revisar certificados
+          ansible.builtin.debug:
+            msg: Conferir validade dos certificados
+      rescue:
+        - name: Registrar desvio de segurança
+          ansible.builtin.debug:
+            msg: Abrir item de correção para revisão
+      always:
+        - name: Encerrar auditoria de segurança
+          ansible.builtin.debug:
+            msg: Evidências de segurança consolidadas
+    - name: Auditar continuidade operacional
+      block:
+        - name: Verificar restauração de backup
+          ansible.builtin.debug:
+            msg: Simular conferência do último backup
+        - name: Verificar alertas
+          ansible.builtin.debug:
+            msg: Conferir destinatários dos alertas
+        - name: Revisar plano de recuperação
+          ansible.builtin.debug:
+            msg: Conferir runbook e responsáveis
+      rescue:
+        - name: Registrar risco operacional
+          ansible.builtin.debug:
+            msg: Abrir item de melhoria operacional
+      always:
+        - name: Encerrar auditoria operacional
+          ansible.builtin.debug:
+            msg: Evidências operacionais consolidadas
+    - name: Consolidar indicadores por área
+      ansible.builtin.debug:
+        msg: Área {{ item }} revisada
+      loop: "{{ audit_targets }}"
+    - name: Concluir relatório
+      ansible.builtin.set_fact:
+        audit_status: completed
+    - name: Notificar equipe de operações
+      ansible.builtin.debug:
+        msg: Auditoria concluída
+      when: notify_operations | bool
+      changed_when: true
+      notify: Registrar entrega do relatório
+  post_tasks:
+    - name: Mostrar resultado global
+      ansible.builtin.debug:
+        msg: 'Auditoria: {{ audit_status }}; implantação: {{ rollout_status | default("não executada") }}'
+    - name: Encerrar demonstração
+      ansible.builtin.debug:
+        msg: Explore Tasks, Pre-tasks, Post-tasks, Handlers e os escopos internos dos blocos
+  handlers:
+    - name: Registrar entrega do relatório
+      ansible.builtin.debug:
+        msg: "Handler: relatório entregue à operação"
