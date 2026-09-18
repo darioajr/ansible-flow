@@ -9,6 +9,7 @@ a {
   height: 100dvh;
 }
 .app-shell .pf-v6-c-masthead {
+  align-items: center;
   background: #111f33;
   color: #fff;
   min-height: 70px;
@@ -16,6 +17,7 @@ a {
   border-bottom: 1px solid #2a384c;
 }
 .app-shell .pf-v6-c-masthead__content {
+  align-items: center;
   justify-content: flex-end;
   gap: 24px;
 }
