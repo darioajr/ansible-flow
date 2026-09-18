@@ -1,0 +1,41 @@
+{
+  "name": "visual-ansible",
+  "version": "0.2.0",
+  "private": true,
+  "packageManager": "pnpm@11.2.2",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm prepare:assets && pnpm --filter @visual-ansible/web dev",
+    "build": "pnpm prepare:assets && turbo run build",
+    "typecheck": "tsc --noEmit && pnpm --filter @visual-ansible/web typecheck",
+    "lint": "eslint . && node scripts/check-boundaries.mjs",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "package:vscode": "pnpm build && pnpm --filter visual-ansible-extension package",
+    "format": "prettier --write .",
+    "prepare:assets": "node scripts/prepare-assets.mjs",
+    "test:extension": "pnpm --filter visual-ansible-extension... build && node scripts/test-extension.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/vscode": "^1.96.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.3.5",
+    "typescript-eslint": "^8.0.0",
+    "typescript": "^5.9.0",
+    "prettier": "^3.0.0",
+    "vitest": "^3.2.0",
+    "turbo": "^2.0.0",
+    "esbuild": "^0.25.0",
+    "monaco-editor": "^0.56.0",
+    "yaml": "^2.8.0",
+    "zod": "^4.0.0"
+  }
+}

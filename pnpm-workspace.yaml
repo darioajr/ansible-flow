@@ -1,0 +1,11 @@
+packages:
+  - apps/web
+  - apps/vscode/extension
+  - apps/vscode/webview
+  - packages/*
+allowBuilds:
+  esbuild: true
+  sharp: true
+  "@vscode/vsce-sign": false
+  keytar: false
+  unrs-resolver: true

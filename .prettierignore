@@ -1,0 +1,10 @@
+node_modules
+.next
+.turbo
+dist
+spec.md
+pnpm-lock.yaml
+**/public/monaco
+**/media
+.vscode-test
+test-results

@@ -1,0 +1,13 @@
+{
+  "name": "@visual-ansible/generator",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@visual-ansible/air": "workspace:*",
+    "yaml": "^2.8.0"
+  }
+}

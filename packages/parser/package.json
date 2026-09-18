@@ -1,0 +1,14 @@
+{
+  "name": "@visual-ansible/parser",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@visual-ansible/air": "workspace:*",
+    "@visual-ansible/module-metadata": "workspace:*",
+    "yaml": "^2.8.0"
+  }
+}

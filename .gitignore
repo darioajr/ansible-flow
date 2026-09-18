@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.turbo/
+dist/
+data/
+.env*
+!.env.example
+*.tsbuildinfo
+*.vsix
+public/monaco/
+apps/vscode/extension/media/
+playwright-report/
+test-results/
+.vscode-test/
