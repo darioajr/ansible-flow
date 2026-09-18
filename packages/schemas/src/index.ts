@@ -1,4 +1,5 @@
-import { taskExtraKeys, playExtraKeys } from "@visual-ansible/air";
+import { moduleMetadataSchema } from "@visual-ansible/module-metadata";
+import { taskExtraKeys, playExtraKeys, walk } from "@visual-ansible/air";
 import { z } from "zod";
 import type {
   AutomationNode,
@@ -29,7 +30,15 @@ export const nodeSchema: z.ZodType<AutomationNode> = z.lazy(() =>
   z
     .object({
       id,
-      type: z.enum(["TASK", "MODULE", "BLOCK", "CONDITION", "LOOP", "HANDLER"]),
+      type: z.enum([
+        "TASK",
+        "MODULE",
+        "BLOCK",
+        "CONDITION",
+        "LOOP",
+        "HANDLER",
+        "ROLE",
+      ]),
       name: z.string().max(500),
       module: z
         .object({ fqcn: z.string().regex(/^\w+\.\w+\.\w+$/), args: record })
@@ -48,6 +57,18 @@ export const nodeSchema: z.ZodType<AutomationNode> = z.lazy(() =>
       run_once: z.boolean().optional(),
       environment: record.optional(),
       children: z.array(nodeSchema).max(500).optional(),
+      rescue: z.array(nodeSchema).max(500).optional(),
+      always: z.array(nodeSchema).max(500).optional(),
+      role: z
+        .object({
+          name: z.string().min(1).max(500),
+          options: record.refine(
+            (v) => !Object.hasOwn(v, "role"),
+            "Use role.name for the role identifier",
+          ),
+        })
+        .strict()
+        .optional(),
       extra: record
         .refine(
           (v) =>
@@ -59,7 +80,42 @@ export const nodeSchema: z.ZodType<AutomationNode> = z.lazy(() =>
         .optional(),
       location: location.optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((node, ctx) => {
+      if (node.type === "ROLE") {
+        if (!node.role)
+          ctx.addIssue({
+            code: "custom",
+            message: "Role nodes require role configuration.",
+          });
+        for (const key of Object.keys(node))
+          if (
+            !["id", "type", "name", "role", "location"].includes(key) &&
+            node[key as keyof typeof node] !== undefined
+          )
+            ctx.addIssue({
+              code: "custom",
+              message: `Role option ${key} must be stored in role.options.`,
+            });
+      } else if (node.role)
+        ctx.addIssue({
+          code: "custom",
+          message: "Only role nodes can contain role configuration.",
+        });
+      if (
+        node.type !== "BLOCK" &&
+        [node.children, node.rescue, node.always].some((v) => v !== undefined)
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "Only blocks can contain block/rescue/always branches.",
+        });
+      if (node.type === "BLOCK" && node.module)
+        ctx.addIssue({
+          code: "custom",
+          message: "Blocks cannot also invoke a module.",
+        });
+    }),
 );
 export const playbookSchema: z.ZodType<Playbook> = z
   .object({
@@ -77,6 +133,9 @@ export const playbookSchema: z.ZodType<Playbook> = z
             vars: record,
             tasks: z.array(nodeSchema).max(500),
             handlers: z.array(nodeSchema).max(500),
+            roles: z.array(nodeSchema).max(500).optional(),
+            pre_tasks: z.array(nodeSchema).max(500).optional(),
+            post_tasks: z.array(nodeSchema).max(500).optional(),
             extra: record
               .refine(
                 (v) =>
@@ -88,7 +147,27 @@ export const playbookSchema: z.ZodType<Playbook> = z
               .optional(),
             location: location.optional(),
           })
-          .strict(),
+          .strict()
+          .superRefine((play, ctx) => {
+            if (play.roles?.some((n) => n.type !== "ROLE"))
+              ctx.addIssue({
+                code: "custom",
+                message: "The roles list accepts role nodes only.",
+              });
+            if (
+              walk([
+                ...play.tasks,
+                ...play.handlers,
+                ...(play.pre_tasks ?? []),
+                ...(play.post_tasks ?? []),
+              ]).some((n) => n.type === "ROLE")
+            )
+              ctx.addIssue({
+                code: "custom",
+                message:
+                  "Static roles belong to the play roles list; use include_role/import_role inside tasks.",
+              });
+          }),
       )
       .min(1)
       .max(50),
@@ -140,6 +219,12 @@ export const webviewMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("redo") }).strict(),
 ]);
 export const hostMessageSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("modules"),
+      modules: z.array(moduleMetadataSchema).max(2000),
+    })
+    .strict(),
   z
     .object({
       type: z.literal("document"),

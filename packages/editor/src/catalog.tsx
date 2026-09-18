@@ -7,20 +7,19 @@ import {
   CodeBranchIcon,
   RedoIcon,
 } from "@patternfly/react-icons";
-import { modules } from "@visual-ansible/module-metadata";
 import { useEditor } from "./context";
 export function Catalog() {
   const [query, setQuery] = useState("");
   const s = useEditor();
-  const filtered = modules.filter((m) =>
-    `${m.label} ${m.category} ${m.description}`
+  const filtered = s.modules.filter((m) =>
+    `${m.fqcn} ${m.label} ${m.category} ${m.description}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
   return (
     <aside className="catalog">
       <div className="panel-title">
-        Module catalog <Label isCompact>15</Label>
+        Module catalog <Label isCompact>{s.modules.length}</Label>
       </div>
       <div className="catalog-search">
         <SearchInput
@@ -33,7 +32,7 @@ export function Catalog() {
         />
       </div>
       <div className="catalog-scroll">
-        <div className="collection-name">▾ &nbsp; ansible.builtin</div>
+        <div className="collection-name">Available modules & collections</div>
         {[...new Set(filtered.map((m) => m.category))].map((category) => (
           <div key={category}>
             <h3 className="catalog-category">{category}</h3>
@@ -43,7 +42,7 @@ export function Catalog() {
                 <div
                   key={m.fqcn}
                   className="catalog-item"
-                  draggable
+                  draggable={s.scope !== "roles"}
                   title={m.description}
                   onDragStart={(e) => {
                     e.dataTransfer.setData(
@@ -56,10 +55,11 @@ export function Catalog() {
                   <CubeIcon />
                   <div>
                     <strong>{m.label}</strong>
-                    <small>{m.description}</small>
+                    <small>{m.fqcn}</small>
                   </div>
                   <Button
                     variant="plain"
+                    isDisabled={s.scope === "roles"}
                     aria-label={`Add ${m.label}`}
                     onClick={() => s.add(m.fqcn)}
                   >
@@ -73,6 +73,7 @@ export function Catalog() {
         <h3 className="catalog-category">Structure & behavior</h3>
         {(
           [
+            ["ROLE", "Role", LayerGroupIcon],
             ["BLOCK", "Block", LayerGroupIcon],
             ["CONDITION", "Condition", CodeBranchIcon],
             ["LOOP", "Loop", RedoIcon],
@@ -95,6 +96,7 @@ export function Catalog() {
             </div>
             <Button
               variant="plain"
+              isDisabled={s.scope === "roles" && type !== "ROLE"}
               aria-label={`Add ${name}`}
               onClick={() => s.add("ansible.builtin.debug", type)}
             >

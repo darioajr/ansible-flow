@@ -1,7 +1,7 @@
 export type Json =
   null | boolean | number | string | Json[] | { [key: string]: Json };
 export type NodeType =
-  "TASK" | "MODULE" | "BLOCK" | "CONDITION" | "LOOP" | "HANDLER";
+  "TASK" | "MODULE" | "BLOCK" | "CONDITION" | "LOOP" | "HANDLER" | "ROLE";
 export interface SourceLocation {
   line: number;
   column: number;
@@ -25,6 +25,9 @@ export interface AutomationNode {
   run_once?: boolean;
   environment?: Record<string, Json>;
   children?: AutomationNode[];
+  rescue?: AutomationNode[];
+  always?: AutomationNode[];
+  role?: { name: string; options: Record<string, Json> };
   extra?: Record<string, Json>;
   location?: SourceLocation;
 }
@@ -36,6 +39,9 @@ export interface Play {
   vars: Record<string, Json>;
   tasks: AutomationNode[];
   handlers: AutomationNode[];
+  roles?: AutomationNode[];
+  pre_tasks?: AutomationNode[];
+  post_tasks?: AutomationNode[];
   extra?: Record<string, Json>;
   location?: SourceLocation;
 }
@@ -86,21 +92,35 @@ export function newProject(name: string, description = ""): Project {
     updatedAt: new Date().toISOString(),
   };
 }
+export const branches = ["children", "rescue", "always"] as const;
+export const playScopes = [
+  "pre_tasks",
+  "roles",
+  "tasks",
+  "post_tasks",
+  "handlers",
+] as const;
+export function playNodes(play: Play): AutomationNode[] {
+  return playScopes.flatMap((scope) => play[scope] ?? []);
+}
 export function walk(nodes: AutomationNode[]): AutomationNode[] {
-  return nodes.flatMap((n) => [n, ...walk(n.children ?? [])]);
+  return nodes.flatMap((n) => [
+    n,
+    ...branches.flatMap((key) => walk(n[key] ?? [])),
+  ]);
 }
 export function updateNode(
   nodes: AutomationNode[],
   id: string,
   patch: Partial<AutomationNode>,
 ): AutomationNode[] {
-  return nodes.map((n) =>
-    n.id === id
-      ? { ...n, ...patch }
-      : n.children
-        ? { ...n, children: updateNode(n.children, id, patch) }
-        : n,
-  );
+  return nodes.map((n) => {
+    if (n.id === id) return { ...n, ...patch };
+    const updated = { ...n };
+    for (const key of branches)
+      if (n[key]) updated[key] = updateNode(n[key]!, id, patch);
+    return updated;
+  });
 }
 export function removeNodes(
   nodes: AutomationNode[],
@@ -108,18 +128,25 @@ export function removeNodes(
 ): AutomationNode[] {
   return nodes
     .filter((n) => !ids.includes(n.id))
-    .map((n) =>
-      n.children ? { ...n, children: removeNodes(n.children, ids) } : n,
-    );
+    .map((n) => {
+      const updated = { ...n };
+      for (const key of branches)
+        if (n[key]) updated[key] = removeNodes(n[key]!, ids);
+      return updated;
+    });
 }
 export function duplicateNodes(nodes: AutomationNode[]): AutomationNode[] {
-  return nodes.map((n) => ({
-    ...structuredClone(n),
-    id: crypto.randomUUID(),
-    name: `${n.name} (copy)`,
-    location: undefined,
-    children: n.children ? duplicateNodes(n.children) : undefined,
-  }));
+  return nodes.map((n) => {
+    const updated = {
+      ...structuredClone(n),
+      id: crypto.randomUUID(),
+      name: `${n.name} (copy)`,
+      location: undefined,
+    };
+    for (const key of branches)
+      if (n[key]) updated[key] = duplicateNodes(n[key]!);
+    return updated;
+  });
 }
 export function connectSequential(
   nodes: AutomationNode[],

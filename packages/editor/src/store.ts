@@ -1,9 +1,12 @@
 import { createStore } from "zustand/vanilla";
+import { modules, type ModuleMetadata } from "@visual-ansible/module-metadata";
 import { parsePlaybook } from "@visual-ansible/parser";
 import { assertProject, validatePlaybook } from "@visual-ansible/validator";
 import {
   newPlaybook,
   walk,
+  playNodes,
+  playScopes,
   updateNode,
   removeNodes,
   duplicateNodes,
@@ -15,6 +18,8 @@ import {
 } from "@visual-ansible/air";
 export interface State {
   project: Project;
+  modules: ModuleMetadata[];
+  setModules: (modules: ModuleMetadata[]) => void;
   bookId: string;
   playId: string;
   scope: string;
@@ -52,12 +57,30 @@ export function nodesIn(
   scope: string,
 ): AutomationNode[] {
   if (!play) return [];
-  return scope === "tasks"
-    ? play.tasks
-    : scope === "handlers"
-      ? play.handlers
-      : (walk([...play.tasks, ...play.handlers]).find((n) => n.id === scope)
-          ?.children ?? []);
+  if (playScopes.includes(scope as (typeof playScopes)[number]))
+    return play[scope as (typeof playScopes)[number]] ?? [];
+  const [id, branch = "children"] = scope.split(":");
+  const block = walk(playNodes(play)).find((n) => n.id === id);
+  return block?.[branch as "children" | "rescue" | "always"] ?? [];
+}
+function editableNodes(play: Play, scope: string): AutomationNode[] {
+  if (playScopes.includes(scope as (typeof playScopes)[number]))
+    return (play[scope as (typeof playScopes)[number]] ??= []);
+  const [id, branch = "children"] = scope.split(":");
+  const block = walk(playNodes(play)).find(
+    (n) => n.id === id && n.type === "BLOCK",
+  );
+  if (!block || !["children", "rescue", "always"].includes(branch))
+    throw new Error("Unknown block scope.");
+  return (block[branch as "children" | "rescue" | "always"] ??= []);
+}
+export function scopesIn(play: Play): string[] {
+  return [
+    ...playScopes,
+    ...walk(playNodes(play))
+      .filter((n) => n.type === "BLOCK")
+      .flatMap((n) => [n.id, `${n.id}:rescue`, `${n.id}:always`]),
+  ];
 }
 function navigation(project: Project, s?: State) {
   const b =
@@ -66,17 +89,14 @@ function navigation(project: Project, s?: State) {
   return {
     bookId: b.id,
     playId: p.id,
-    scope:
-      s &&
-      (["tasks", "handlers"].includes(s.scope) ||
-        walk([...p.tasks, ...p.handlers]).some((n) => n.id === s.scope))
-        ? s.scope
-        : "tasks",
+    scope: s && scopesIn(p).includes(s.scope) ? s.scope : "tasks",
   };
 }
 export function createEditorStore(project: Project) {
   return createStore<State>((set, get) => ({
     project,
+    modules,
+    setModules: (modules) => set({ modules }),
     ...navigation(project),
     selection: [],
     past: [],
@@ -89,7 +109,7 @@ export function createEditorStore(project: Project) {
       const result = parsePlaybook(text, old.name);
       const errors = [
         ...result.problems,
-        ...validatePlaybook(result.playbook),
+        ...validatePlaybook(result.playbook, s.modules),
       ].filter((p) => p.severity === "error");
       if (!result.editable || errors.length)
         throw new Error(
@@ -103,7 +123,7 @@ export function createEditorStore(project: Project) {
         b.id === old.id ? book : b,
       );
       for (const play of old.plays)
-        for (const node of walk([...play.tasks, ...play.handlers]))
+        for (const node of walk(playNodes(play)))
           delete project.layout[node.id];
       assertProject(project);
       set({
@@ -141,22 +161,32 @@ export function createEditorStore(project: Project) {
     patch: (id, patch) =>
       get().edit((p) => {
         const play = currentPlay({ ...get(), project: p })!;
-        play.tasks = updateNode(play.tasks, id, patch);
-        play.handlers = updateNode(play.handlers, id, patch);
+        for (const scope of playScopes)
+          if (play[scope]) play[scope] = updateNode(play[scope]!, id, patch);
       }),
     add: (fqcn, type = "MODULE", position) => {
       const s = get();
       const id = crypto.randomUUID();
+      const targetScope = type === "ROLE" ? "roles" : s.scope;
+      if (targetScope === "roles" && type !== "ROLE") return;
+      if (targetScope === "handlers" && type === "BLOCK") return;
       s.edit((p) => {
         const play = currentPlay({ ...s, project: p })!;
-        nodesIn(play, s.scope).push({
+        editableNodes(play, targetScope).push({
           id,
-          type: s.scope === "handlers" ? "HANDLER" : type,
+          type: targetScope === "handlers" ? "HANDLER" : type,
           name:
-            type === "BLOCK"
-              ? "New block"
-              : `Configure ${fqcn.split(".").at(-1)}`,
-          module: type === "BLOCK" ? undefined : { fqcn, args: {} },
+            type === "ROLE"
+              ? "New role"
+              : type === "BLOCK"
+                ? "New block"
+                : `Configure ${fqcn.split(".").at(-1)}`,
+          module: ["BLOCK", "ROLE"].includes(type)
+            ? undefined
+            : { fqcn, args: {} },
+          ...(type === "ROLE"
+            ? { role: { name: "my_role", options: {} } }
+            : {}),
           ...(type === "BLOCK" ? { children: [] } : {}),
           ...(type === "CONDITION"
             ? { when: 'ansible_facts.os_family == "RedHat"' }
@@ -165,14 +195,14 @@ export function createEditorStore(project: Project) {
         });
         if (position) p.layout[id] = position;
       });
-      set({ selection: [id] });
+      set({ scope: targetScope, selection: [id] });
     },
     remove: () => {
       const s = get();
       s.edit((p) => {
         const play = currentPlay({ ...s, project: p })!;
-        play.tasks = removeNodes(play.tasks, s.selection);
-        play.handlers = removeNodes(play.handlers, s.selection);
+        for (const scope of playScopes)
+          if (play[scope]) play[scope] = removeNodes(play[scope]!, s.selection);
         s.selection.forEach((id) => delete p.layout[id]);
       });
       set({ selection: [] });
@@ -190,9 +220,15 @@ export function createEditorStore(project: Project) {
     paste: () => {
       const s = get();
       if (!s.clipboard.length) return;
+      if (
+        s.clipboard.some((n) => (n.type === "ROLE") !== (s.scope === "roles"))
+      )
+        return;
       const copies = duplicateNodes(s.clipboard);
       s.edit((p) =>
-        nodesIn(currentPlay({ ...s, project: p }), s.scope).push(...copies),
+        editableNodes(currentPlay({ ...s, project: p })!, s.scope).push(
+          ...copies,
+        ),
       );
       set({ selection: copies.map((n) => n.id) });
     },
@@ -209,14 +245,8 @@ export function createEditorStore(project: Project) {
           source,
           target,
         );
-        if (s.scope === "tasks") play.tasks = ordered;
-        else if (s.scope === "handlers") play.handlers = ordered;
-        else {
-          play.tasks = updateNode(play.tasks, s.scope, { children: ordered });
-          play.handlers = updateNode(play.handlers, s.scope, {
-            children: ordered,
-          });
-        }
+        const list = editableNodes(play, s.scope);
+        list.splice(0, list.length, ...ordered);
       });
     },
     undo: () => {

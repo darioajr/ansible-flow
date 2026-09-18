@@ -1,5 +1,5 @@
 import { taskExtraKeys, playExtraKeys } from "@visual-ansible/air";
-import { parseDocument, LineCounter, visit, isAlias } from "yaml";
+import { parseDocument, LineCounter, visit, isAlias, isNode } from "yaml";
 import {
   newPlaybook,
   type AutomationNode,
@@ -29,6 +29,8 @@ const taskKeys = new Set([
   "run_once",
   "environment",
   "block",
+  "rescue",
+  "always",
   "args",
 ]);
 const taskExtra = new Set<string>(taskExtraKeys);
@@ -49,7 +51,8 @@ export function parsePlaybook(
       severity: "error",
       code: "UNSUPPORTED_YAML",
       message,
-      ...(location ? { line: location.line, column: location.column } : {}),
+      line: location?.line ?? 1,
+      column: location?.column ?? 1,
     });
   if (text.length > 1_000_000)
     return {
@@ -63,6 +66,14 @@ export function parsePlaybook(
       lineCounter: lines,
       uniqueKeys: true,
       strict: true,
+      customTags: [
+        {
+          tag: "tag:yaml.org,2002:bool",
+          default: true,
+          test: /^(?:yes|no|on|off)$/i,
+          resolve: (value: string) => /^(?:yes|on)$/i.test(value),
+        },
+      ],
     });
     for (const error of doc.errors)
       problems.push({
@@ -76,11 +87,21 @@ export function parsePlaybook(
     visit(doc, (_key, node) => {
       if (isAlias(node))
         issue(
-          "Unsupported YAML construct: aliases. Original YAML is preserved.",
+          "YAML aliases are not supported yet. Expand the referenced value before visual editing.",
+          {
+            ...lines.linePos(node.range?.[0] ?? 0),
+            column: lines.linePos(node.range?.[0] ?? 0).col,
+            path: [],
+          },
         );
-      if (node && typeof node === "object" && "tag" in node && node.tag)
+      if (isNode(node) && node.tag)
         issue(
-          "Unsupported YAML construct: explicit tags. Original YAML is preserved.",
+          "Explicit YAML tags are not supported yet. Use plain values or edit this file as text.",
+          {
+            ...lines.linePos(node.range?.[0] ?? 0),
+            column: lines.linePos(node.range?.[0] ?? 0).col,
+            path: [],
+          },
         );
     });
     if (problems.length) return { playbook: book, problems, editable: false };
@@ -108,6 +129,82 @@ export function parsePlaybook(
       throw new Error(
         "Expected a non-empty Ansible playbook (a YAML list of plays).",
       );
+    const booleanValue = (value: Json | undefined): boolean | undefined => {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "string") {
+        if (["yes", "true", "on"].includes(value.toLowerCase())) return true;
+        if (["no", "false", "off"].includes(value.toLowerCase())) return false;
+      }
+      return undefined;
+    };
+    function variables(
+      value: Json | undefined,
+      path: (string | number)[],
+    ): Record<string, Json> {
+      if (value === undefined || value === null) return {};
+      const entries = Array.isArray(value) ? value : [value];
+      const result: Record<string, Json> = {};
+      entries.forEach((entry, i) => {
+        const at = Array.isArray(value) ? [...path, i] : path;
+        if (!object(entry)) {
+          issue(
+            "Variables must be a mapping or a list of mappings.",
+            locate(at),
+          );
+          return;
+        }
+        for (const [key, val] of Object.entries(entry)) {
+          if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key))
+            issue(
+              `Invalid variable name “${key}”. Use letters, digits and underscores without backslashes.`,
+              locate([...at, key]),
+            );
+          result[key] = val;
+        }
+      });
+      return result;
+    }
+    function roles(
+      value: Json | undefined,
+      path: (string | number)[],
+    ): AutomationNode[] {
+      if (value === undefined || value === null) return [];
+      if (!Array.isArray(value)) {
+        issue(
+          "Roles must be a list of role names or mappings containing role.",
+          locate(path),
+        );
+        return [];
+      }
+      return value.flatMap((entry, i) => {
+        const name =
+          typeof entry === "string"
+            ? entry
+            : object(entry)
+              ? entry.role
+              : undefined;
+        if (typeof name !== "string" || !name.trim()) {
+          issue("A role requires a non-empty role name.", locate([...path, i]));
+          return [];
+        }
+        const options = object(entry)
+          ? Object.fromEntries(
+              Object.entries(entry).filter(([key]) => key !== "role"),
+            )
+          : {};
+        if (options.vars !== undefined)
+          options.vars = variables(options.vars, [...path, i, "vars"]);
+        return [
+          {
+            id: crypto.randomUUID(),
+            type: "ROLE",
+            name,
+            role: { name, options },
+            location: locate([...path, i]),
+          },
+        ];
+      });
+    }
     function tasks(
       value: Json | undefined,
       path: (string | number)[],
@@ -127,6 +224,8 @@ export function parsePlaybook(
           );
           return [];
         }
+        if (raw.name !== undefined && typeof raw.name !== "string")
+          issue("Task name must be a string.", locate([...path, i, "name"]));
         const node: AutomationNode = {
           id: crypto.randomUUID(),
           type: handler
@@ -144,12 +243,20 @@ export function parsePlaybook(
         if (raw.block !== undefined) {
           if (handler)
             issue("Unsupported YAML construct: handler block.", location);
+          if (raw.args !== undefined)
+            issue(
+              "args belongs to a module task, not a block.",
+              locate([...path, i, "args"]),
+            );
           node.children = tasks(raw.block, [...path, i, "block"]);
+          for (const key of ["rescue", "always"] as const)
+            if (raw[key] !== undefined)
+              node[key] = tasks(raw[key], [...path, i, key]);
           if (candidates.length)
             issue("A block cannot also invoke a module.", location);
         } else if (candidates.length !== 1)
           issue(
-            "Unsupported YAML construct: expected one supported module invocation.",
+            "Expected exactly one module invocation. Indent its arguments under the module name; use an FQCN for modules outside the catalog.",
             location,
           );
         else {
@@ -181,17 +288,40 @@ export function parsePlaybook(
           if (!raw.name)
             node.name = node.module?.fqcn.split(".").at(-1) ?? "Task";
         }
+        if (
+          raw.block === undefined &&
+          (raw.rescue !== undefined || raw.always !== undefined)
+        )
+          issue(
+            "rescue and always must belong to a block, alongside the block keyword.",
+            locate([
+              ...path,
+              i,
+              raw.rescue !== undefined ? "rescue" : "always",
+            ]),
+          );
         const extras: Record<string, Json> = {};
         for (const [key, val] of Object.entries(raw)) {
-          if (["name", "block", "args", ...candidates].includes(key)) continue;
+          if (
+            [
+              "name",
+              "block",
+              "rescue",
+              "always",
+              "args",
+              ...candidates,
+            ].includes(key)
+          )
+            continue;
           if (taskExtra.has(key)) {
-            extras[key] = val;
+            extras[key] =
+              key === "vars" ? variables(val, [...path, i, key]) : val;
             continue;
           }
           if (!taskKeys.has(key)) {
             issue(
-              `Unsupported YAML construct: task keyword “${key}”. Original content is preserved.`,
-              location,
+              `Unsupported task keyword “${key}”. Check indentation: module arguments belong under the module, while when/notify belong beside it.`,
+              locate([...path, i, key]),
             );
             continue;
           }
@@ -217,9 +347,9 @@ export function parsePlaybook(
             });
           else if (
             ["become", "ignore_errors", "run_once"].includes(key) &&
-            typeof val === "boolean"
+            booleanValue(val) !== undefined
           )
-            Object.assign(node, { [key]: val });
+            Object.assign(node, { [key]: booleanValue(val) });
           else if (
             ["changed_when", "failed_when"].includes(key) &&
             (typeof val === "string" || typeof val === "boolean")
@@ -232,7 +362,10 @@ export function parsePlaybook(
             Object.assign(node, { [key]: val });
           else if (key === "environment" && object(val)) node.environment = val;
           else
-            issue(`Unsupported YAML construct: value for “${key}”.`, location);
+            issue(
+              `Unsupported value for “${key}”. Check the expected type and indentation.`,
+              locate([...path, i, key]),
+            );
         }
         if (Object.keys(extras).length) node.extra = extras;
         return [node];
@@ -244,31 +377,53 @@ export function parsePlaybook(
         issue("Expected an Ansible play with a string hosts field.", location);
         return;
       }
+      if (raw.name !== undefined && typeof raw.name !== "string")
+        issue("Play name must be a string.", locate([index, "name"]));
       const extra: Record<string, Json> = {};
       for (const [key, v] of Object.entries(raw)) {
         if (
-          ["name", "hosts", "become", "vars", "tasks", "handlers"].includes(key)
+          [
+            "name",
+            "hosts",
+            "become",
+            "vars",
+            "tasks",
+            "handlers",
+            "roles",
+            "pre_tasks",
+            "post_tasks",
+          ].includes(key)
         )
           continue;
         if (playExtra.has(key)) extra[key] = v;
         else
           issue(
-            `Unsupported YAML construct: play keyword “${key}”. Original content is preserved.`,
-            location,
+            `Unsupported play keyword “${key}”. Variables belong under vars; module invocations belong inside tasks.`,
+            locate([index, key]),
           );
       }
-      if (raw.vars !== undefined && !object(raw.vars))
-        issue("Play vars must be a mapping.", location);
-      if (raw.become !== undefined && typeof raw.become !== "boolean")
-        issue("Play become must be boolean.", location);
+      if (raw.become !== undefined && booleanValue(raw.become) === undefined)
+        issue(
+          "Play become must be a boolean (true/false or yes/no).",
+          locate([index, "become"]),
+        );
       book.plays.push({
         id: crypto.randomUUID(),
         name: typeof raw.name === "string" ? raw.name : `Play ${index + 1}`,
         hosts: raw.hosts,
-        become: typeof raw.become === "boolean" ? raw.become : undefined,
-        vars: object(raw.vars) ? raw.vars : {},
+        become: booleanValue(raw.become),
+        vars: variables(raw.vars, [index, "vars"]),
         tasks: tasks(raw.tasks, [index, "tasks"]),
         handlers: tasks(raw.handlers, [index, "handlers"], true),
+        ...(raw.roles !== undefined
+          ? { roles: roles(raw.roles, [index, "roles"]) }
+          : {}),
+        ...(raw.pre_tasks !== undefined
+          ? { pre_tasks: tasks(raw.pre_tasks, [index, "pre_tasks"]) }
+          : {}),
+        ...(raw.post_tasks !== undefined
+          ? { post_tasks: tasks(raw.post_tasks, [index, "post_tasks"]) }
+          : {}),
         extra,
         location,
       });

@@ -57,7 +57,7 @@ it("imports YAML and refuses unsupported content", async () => {
     (
       await request("POST", ["playbooks", "import"], {
         name: "bad.yml",
-        yaml: "- hosts: all\n  roles: [web]\n",
+        yaml: "- hosts: all\n  import_playbook: other.yml\n",
       })
     ).status,
   ).toBe(422);

@@ -12,7 +12,20 @@ export async function api<T>(
   });
   if (!response.ok) {
     const body = await response.json();
-    throw new Error(body.error?.message ?? "Request failed.");
+    const details = Array.isArray(body.error?.details)
+      ? body.error.details
+          .filter((p: { message?: unknown }) => typeof p?.message === "string")
+          .map(
+            (p: { line?: number; column?: number; message: string }) =>
+              `${p.line ? `Line ${p.line}:${p.column ?? 1}: ` : ""}${p.message}`,
+          )
+          .join("\n")
+      : "";
+    throw new Error(
+      [body.error?.message ?? "Request failed.", details]
+        .filter(Boolean)
+        .join("\n"),
+    );
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }

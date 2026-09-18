@@ -214,7 +214,7 @@ test("Web: edit YAML, reject errors, apply, undo and persist both directions", a
   await expect(page.locator(".monaco-editor")).toContainText(
     "Changed visually",
   );
-  await edit("- hosts: all\n  roles: [unsupported]\n");
+  await edit("- hosts: all\n  import_playbook: other.yml\n");
   await page.getByRole("button", { name: "Apply to diagram" }).click();
   await expect(page.getByText("YAML could not be applied")).toBeVisible();
   await page.getByRole("button", { name: "Discard draft" }).click();

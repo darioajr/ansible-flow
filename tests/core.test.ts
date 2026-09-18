@@ -37,7 +37,7 @@ it("applies YAML atomically, preserves other books and supports undo/redo", () =
 });
 it.each([
   "- hosts: [",
-  "- hosts: all\n  roles: [web]\n",
+  "- hosts: all\n  import_playbook: other.yml\n",
   "- hosts: all\n  vars: {password: literal}\n  tasks: []\n",
   "- hosts: all\n  tasks:\n    - ansible.builtin.service: {name: nginx}\n",
 ])("rejects invalid YAML without changing diagram or history: %s", (text) => {
@@ -107,8 +107,8 @@ describe("shared Ansible engine", () => {
     });
   });
   it.each([
-    "- hosts: all\n  roles: [web]\n",
-    "- hosts: all\n  tasks:\n    - block: []\n      rescue: []\n",
+    "- hosts: all\n  import_playbook: other.yml\n",
+    "- hosts: all\n  tasks:\n    - debug: {}\n      rescue: []\n",
     "- hosts: all\n  tasks:\n    - debug: {msg: hi}\n      with_items: [one]\n",
     "- hosts: all\n  vars:\n    x: !vault encrypted\n",
   ])(
@@ -118,7 +118,9 @@ describe("shared Ansible engine", () => {
       expect(result.editable).toBe(false);
       expect(result.playbook.source).toBe(source);
       expect(
-        result.problems.some((p) => p.message.includes("Unsupported")),
+        result.problems.some(
+          (p) => p.code === "UNSUPPORTED_YAML" && p.line && p.column,
+        ),
       ).toBe(true);
     },
   );
@@ -152,8 +154,8 @@ describe("shared Ansible engine", () => {
     p.playbooks[0].plays[0].vars = { password: "{{ vault_password }}" };
     expect(() => assertProject(p)).not.toThrow();
   });
-  it("provides 15 metadata-driven module forms and parses ansible-doc JSON", () => {
-    expect(modules).toHaveLength(15);
+  it("provides builtin and community metadata-driven module forms and parses ansible-doc JSON", () => {
+    expect(modules).toHaveLength(20);
     const parsed = parseAnsibleDoc({
       "example.tools.test": {
         doc: {

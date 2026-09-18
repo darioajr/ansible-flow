@@ -38,19 +38,22 @@ import {
 import {
   newPlay,
   walk,
+  playNodes,
   type Project,
   type Playbook,
   type Problem,
 } from "@visual-ansible/air";
 import { generateYaml } from "@visual-ansible/generator";
 import { validatePlaybook } from "@visual-ansible/validator";
-import { createEditorStore, currentPlay } from "./store";
+import { createEditorStore, currentPlay, nodesIn, scopesIn } from "./store";
 import { EditorContext } from "./context";
 import { Canvas } from "./canvas";
 import { Catalog } from "./catalog";
 import { Properties } from "./properties";
 const Yaml = lazy(() => import("./yaml"));
+import { modules, type ModuleMetadata } from "@visual-ansible/module-metadata";
 export interface EditorHost {
+  modules?: ModuleMetadata[];
   kind: "web" | "vscode";
   assetBase: string;
   autosave: boolean;
@@ -97,6 +100,9 @@ export function VisualEditor({
   const [runtimeProblems, setRuntimeProblems] = useState<Problem[]>([]);
   const [modal, setModal] = useState<"book" | "play" | null>(null);
   const [name, setName] = useState("");
+  useEffect(() => {
+    store.getState().setModules(host.modules ?? modules);
+  }, [host.modules, store]);
   const saved = useRef(0);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const blocked = useRef(false);
@@ -211,13 +217,17 @@ export function VisualEditor({
   const book = s.project.playbooks.find((b) => b.id === s.bookId)!;
   const play = currentPlay(s)!;
   const problems = useMemo(
-    () => [...validatePlaybook(book), ...externalProblems, ...runtimeProblems],
-    [book, externalProblems, runtimeProblems],
+    () => [
+      ...validatePlaybook(book, s.modules),
+      ...externalProblems,
+      ...runtimeProblems,
+    ],
+    [book, externalProblems, runtimeProblems, s.modules],
   );
   const errors = problems.filter((p) => p.severity === "error");
   const yaml = useMemo(() => generateYaml(book), [book]);
-  const block = walk([...play.tasks, ...play.handlers]).find(
-    (n) => n.id === s.scope,
+  const block = walk(playNodes(play)).find(
+    (n) => n.id === s.scope.split(":")[0],
   );
   async function exporting() {
     setProblemsOpen(true);
@@ -391,7 +401,27 @@ export function VisualEditor({
           >
             Handlers <Label isCompact>{play.handlers.length}</Label>
           </Button>
-          {block && <Label color="purple">{block.name}</Label>}
+          {(["pre_tasks", "roles", "post_tasks"] as const).map((scope) => (
+            <Button
+              key={scope}
+              variant={s.scope === scope ? "secondary" : "plain"}
+              onClick={() => s.navigate(book.id, play.id, scope)}
+            >
+              {
+                {
+                  pre_tasks: "Pre-tasks",
+                  roles: "Roles",
+                  post_tasks: "Post-tasks",
+                }[scope]
+              }{" "}
+              <Label isCompact>{play[scope]?.length ?? 0}</Label>
+            </Button>
+          ))}
+          {block && (
+            <Label color="purple">
+              {block.name} · {s.scope.split(":")[1] ?? "block"}
+            </Label>
+          )}
           <Button
             className="yaml-toggle"
             variant={yamlOpen ? "secondary" : "plain"}
@@ -411,7 +441,9 @@ export function VisualEditor({
               <span>
                 <i className="status-dot" />{" "}
                 {block?.name ??
-                  (s.scope === "handlers" ? "Event handlers" : play.name)}
+                  (s.scope === "handlers"
+                    ? "Event handlers"
+                    : `${play.name} · ${s.scope}`)}
               </span>
               <Button variant="link" size="sm" onClick={() => s.select([])}>
                 hosts: {play.hosts || "not set"}
@@ -509,8 +541,8 @@ export function VisualEditor({
             </Button>
             <span className="muted small">
               {host.kind === "web"
-                ? "AIR checks · external Ansible checks unavailable"
-                : "AIR checks · validate from command palette for CLI checks"}
+                ? "Basic validation · external Ansible checks not configured"
+                : "Basic validation · run Validate Playbook for configured CLI checks"}
             </span>
             <span className="shortcut-hint">Ctrl / ⌘ + S to save</span>
           </div>
@@ -527,28 +559,22 @@ export function VisualEditor({
                     className="problem-row"
                     key={i}
                     onClick={() => {
+                      const located = p.line
+                        ? book.plays
+                            .flatMap((candidate) => walk(playNodes(candidate)))
+                            .filter(
+                              (node) =>
+                                node.location && node.location.line <= p.line!,
+                            )
+                            .sort(
+                              (a, b) => b.location!.line - a.location!.line,
+                            )[0]
+                        : undefined;
                       for (const candidate of book.plays) {
-                        for (const scope of [
-                          "tasks",
-                          "handlers",
-                          ...walk([...candidate.tasks, ...candidate.handlers])
-                            .filter((n) => n.type === "BLOCK")
-                            .map((n) => n.id),
-                        ]) {
-                          const nodes =
-                            scope === "tasks"
-                              ? candidate.tasks
-                              : scope === "handlers"
-                                ? candidate.handlers
-                                : (walk([
-                                    ...candidate.tasks,
-                                    ...candidate.handlers,
-                                  ]).find((n) => n.id === scope)?.children ??
-                                  []);
+                        for (const scope of scopesIn(candidate)) {
+                          const nodes = nodesIn(candidate, scope);
                           const n = nodes.find(
-                            (n) =>
-                              n.id === p.nodeId ||
-                              (p.line && n.location?.line === p.line),
+                            (n) => n.id === p.nodeId || n.id === located?.id,
                           );
                           if (n) {
                             s.navigate(book.id, candidate.id, scope);
@@ -566,7 +592,12 @@ export function VisualEditor({
                     >
                       {p.severity}
                     </Label>
-                    <span>{p.message}</span>
+                    <span>
+                      {p.line
+                        ? `Line ${p.line}${p.column ? `:${p.column}` : ""}: `
+                        : ""}
+                      {p.message}
+                    </span>
                   </button>
                 ))
               )}

@@ -1,0 +1,48 @@
+# Recovery and roles
+- name: Configure with recovery
+  hosts: localhost
+  become: no
+  vars:
+    - username: sammy
+    - create_user_file: yes
+    - home: /home/sammy
+  pre_tasks:
+    - name: Prepare
+      debug: {msg: prepare}
+  roles:
+    - demo
+    - role: demo
+      vars:
+        role_message: example
+      tags: [setup]
+      when: create_user_file
+  tasks:
+    - name: Recoverable block
+      block:
+        - name: Work
+          debug: {msg: work}
+      rescue:
+        - name: Nested recovery
+          block:
+            - name: Recover
+              debug: {msg: recovery}
+          always:
+            - name: Nested cleanup
+              debug: {msg: nested-cleanup}
+      always:
+        - name: Cleanup
+          debug: {msg: cleanup}
+    - name: Dynamic role
+      include_role:
+        name: demo
+      vars:
+        role_message: dynamic
+    - name: Static role
+      import_role:
+        name: demo
+  post_tasks:
+    - name: Complete
+      debug: {msg: complete}
+  handlers:
+    - name: Restart demo
+      debug: {msg: handler}

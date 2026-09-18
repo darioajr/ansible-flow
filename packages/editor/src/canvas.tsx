@@ -14,7 +14,6 @@ import {
 } from "@xyflow/react";
 import { Button, Label } from "@patternfly/react-core";
 import { CubeIcon, LayerGroupIcon, BoltIcon } from "@patternfly/react-icons";
-import { modules } from "@visual-ansible/module-metadata";
 import type { AutomationNode, NodeType } from "@visual-ansible/air";
 import { useEditor } from "./context";
 import { currentPlay, nodesIn } from "./store";
@@ -40,13 +39,17 @@ function Task({ data, selected }: NodeProps<TaskNode>) {
             ? "HANDLER"
             : n.type === "BLOCK"
               ? "BLOCK"
-              : `TASK ${String(data.index + 1).padStart(2, "0")}`}
+              : n.type === "ROLE"
+                ? "ROLE"
+                : `TASK ${String(data.index + 1).padStart(2, "0")}`}
         </span>
         <span className="task-grip">⠿</span>
       </div>
       <strong className="task-name">{n.name || "Untitled task"}</strong>
       <p className="task-module">
-        {n.module?.fqcn ?? `${n.children?.length ?? 0} nested tasks`}
+        {n.role?.name ??
+          n.module?.fqcn ??
+          `${n.children?.length ?? 0} block · ${n.rescue?.length ?? 0} rescue · ${n.always?.length ?? 0} always`}
       </p>
       {(n.when !== undefined || n.loop !== undefined) && (
         <div className="task-badges">
@@ -147,8 +150,10 @@ function Flow() {
             e.dataTransfer.getData("application/visual-ansible"),
           );
           if (
-            !modules.some((m) => m.fqcn === value.module) ||
-            !["MODULE", "BLOCK", "CONDITION", "LOOP"].includes(value.type)
+            !s.modules.some((m) => m.fqcn === value.module) ||
+            !["MODULE", "BLOCK", "CONDITION", "LOOP", "ROLE"].includes(
+              value.type,
+            )
           )
             return;
           s.add(

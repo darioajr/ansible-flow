@@ -22,8 +22,11 @@ export function generateYaml(book: Playbook): string {
   function task(n: AutomationNode): Record<string, Json> {
     const result: Record<string, Json> = { name: n.name };
     if (n.location) paths.set(result, n.location.path);
-    if (n.type === "BLOCK") result.block = (n.children ?? []).map(task);
-    else if (n.module) result[n.module.fqcn] = stable(n.module.args);
+    if (n.type === "BLOCK") {
+      result.block = (n.children ?? []).map(task);
+      if (n.rescue !== undefined) result.rescue = n.rescue.map(task);
+      if (n.always !== undefined) result.always = n.always.map(task);
+    } else if (n.module) result[n.module.fqcn] = stable(n.module.args);
     for (const key of [
       "when",
       "loop",
@@ -56,7 +59,21 @@ export function generateYaml(book: Playbook): string {
       hosts: p.hosts,
       ...(p.become !== undefined ? { become: p.become } : {}),
       ...(Object.keys(p.vars).length ? { vars: stable(p.vars) } : {}),
+      ...(p.pre_tasks?.length ? { pre_tasks: p.pre_tasks.map(task) } : {}),
+      ...(p.roles?.length
+        ? {
+            roles: p.roles.map((n) => {
+              const role: Record<string, Json> = {
+                role: n.role!.name,
+                ...(stable(n.role!.options) as Record<string, Json>),
+              };
+              if (n.location) paths.set(role, n.location.path);
+              return role;
+            }),
+          }
+        : {}),
       tasks: p.tasks.map(task),
+      ...(p.post_tasks?.length ? { post_tasks: p.post_tasks.map(task) } : {}),
       ...(p.handlers.length ? { handlers: p.handlers.map(task) } : {}),
       ...p.extra,
     };

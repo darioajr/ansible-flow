@@ -1,11 +1,13 @@
 import {
   walk,
+  playNodes,
+  branches,
   type Playbook,
   type Problem,
   type Json,
   type Project,
 } from "@visual-ansible/air";
-import { getModule } from "@visual-ansible/module-metadata";
+import { modules, type ModuleMetadata } from "@visual-ansible/module-metadata";
 export function containsLiteralSecret(value: Json): boolean {
   if (!value || typeof value !== "object") return false;
   return Object.entries(value).some(
@@ -19,7 +21,10 @@ export function containsLiteralSecret(value: Json): boolean {
       containsLiteralSecret(v),
   );
 }
-export function validatePlaybook(book: Playbook): Problem[] {
+export function validatePlaybook(
+  book: Playbook,
+  catalog: ModuleMetadata[] = modules,
+): Problem[] {
   const result: Problem[] = [];
   const ids = new Set<string>();
   for (const play of book.plays) {
@@ -35,7 +40,7 @@ export function validatePlaybook(book: Playbook): Problem[] {
         severity: "error",
         message: "Handler names must be unique.",
       });
-    for (const node of walk([...play.tasks, ...play.handlers])) {
+    for (const node of walk(playNodes(play))) {
       const add = (message: string, severity: Problem["severity"] = "error") =>
         result.push({
           severity,
@@ -49,14 +54,27 @@ export function validatePlaybook(book: Playbook): Problem[] {
       if (!node.name.trim()) add("Task name is required.");
       if (node.register && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(node.register))
         add("Register must be a valid variable name.");
+      if (node.type === "ROLE") {
+        if (!node.role?.name.trim()) add("Define the role name.");
+        if (node.module || branches.some((key) => node[key] !== undefined))
+          add("A play role cannot also contain a module or block branches.");
+        if (!play.roles?.some((r) => r.id === node.id))
+          add("Play roles must belong to the roles scope.");
+        continue;
+      }
+      if (node.role) add("Only role nodes may contain role options.");
+      if (play.roles?.some((r) => r.id === node.id))
+        add("The roles scope only accepts role nodes.");
       if (node.type === "BLOCK") {
+        if (node.module) add("A block cannot invoke a module directly.");
         if (!node.children?.length) add("Add at least one task to this block.");
         if (node.loop !== undefined)
           add("Ansible does not allow loop on a block.");
         if (node.register) add("Ansible does not allow register on a block.");
       } else {
-        if (node.children?.length) add("Only blocks may have children.");
-        const m = getModule(node.module?.fqcn ?? "");
+        if (branches.some((key) => node[key] !== undefined))
+          add("Only blocks may have block, rescue or always branches.");
+        const m = catalog.find((m) => m.fqcn === node.module?.fqcn);
         if (!node.module) add("Choose a module.");
         else if (!m)
           add(
@@ -69,7 +87,11 @@ export function validatePlaybook(book: Playbook): Problem[] {
             if (!Object.keys(args).length) add("Provide at least one fact.");
           } else {
             for (const [key, p] of Object.entries(m.parameters)) {
-              const value = args[key];
+              const value =
+                args[key] ??
+                p.aliases
+                  ?.map((alias) => args[alias])
+                  .find((value) => value !== undefined);
               if (p.required && (value === undefined || value === ""))
                 add(`Parameter “${key}” is required.`);
               if (
@@ -93,12 +115,35 @@ export function validatePlaybook(book: Playbook): Problem[] {
                 add(`Invalid value for “${key}”.`);
             }
             for (const key of Object.keys(args))
-              if (!m.parameters[key])
+              if (
+                !m.parameters[key] &&
+                !Object.values(m.parameters).some((p) =>
+                  p.aliases?.includes(key),
+                )
+              )
                 add(
                   `Parameter “${key}” is not in bundled metadata.`,
                   "warning",
                 );
           }
+          if (
+            m.fqcn === "ansible.builtin.apt" &&
+            !args.name &&
+            !args.update_cache &&
+            !args.upgrade &&
+            !args.autoremove
+          )
+            add(
+              "Specify packages, cache update, upgrade or autoremove for apt.",
+            );
+          if (
+            m.fqcn === "community.general.ufw" &&
+            !args.rule &&
+            !args.state &&
+            !args.policy &&
+            !args.logging
+          )
+            add("Specify a UFW rule, state, policy or logging action.");
           if (m.label === "copy" && !args.src && !args.content)
             add("Copy requires source or content.");
           if (m.label === "copy" && args.src && args.content)
@@ -121,7 +166,19 @@ export function validatePlaybook(book: Playbook): Problem[] {
         }
       }
       for (const name of node.notify ?? [])
-        if (!handlers.includes(name)) add(`Handler “${name}” does not exist.`);
+        if (!handlers.includes(name))
+          add(
+            `Handler “${name}” is not declared in this play; it may be provided by a role.`,
+            play.roles?.length ||
+              walk(playNodes(play)).some((n) =>
+                [
+                  "ansible.builtin.include_role",
+                  "ansible.builtin.import_role",
+                ].includes(n.module?.fqcn ?? ""),
+              )
+              ? "warning"
+              : "error",
+          );
     }
   }
   if (containsLiteralSecret({ ...book, source: undefined } as unknown as Json))
@@ -136,10 +193,7 @@ export function assertProject(project: Project): void {
     project.id,
     ...project.playbooks.flatMap((b) => [
       b.id,
-      ...b.plays.flatMap((p) => [
-        p.id,
-        ...walk([...p.tasks, ...p.handlers]).map((n) => n.id),
-      ]),
+      ...b.plays.flatMap((p) => [p.id, ...walk(playNodes(p)).map((n) => n.id)]),
     ]),
   ];
   if (ids.length > 2000) throw new Error("Project exceeds 2000 objects.");
