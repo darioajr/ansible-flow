@@ -103,6 +103,15 @@ for (const surface of ["web", "vscode"] as const) {
       .getByRole("textbox", { name: "Role name", exact: true })
       .fill("renamed_demo");
     await page.getByRole("button", { name: /^Tasks / }).click();
+    await page.getByRole("button", { name: "Open block →" }).click();
+    await page.locator(".react-flow__node").click();
+    await expect(
+      page.getByRole("textbox", { name: "Task name", exact: true }),
+    ).toHaveValue("Work");
+    await page
+      .getByRole("textbox", { name: "Message (msg)" })
+      .fill("Updated work");
+    await page.getByRole("button", { name: /^Tasks / }).click();
     await page
       .locator(".react-flow__node")
       .filter({ hasText: "Recoverable block" })
@@ -161,6 +170,9 @@ for (const surface of ["web", "vscode"] as const) {
       );
     }
     const play = parse(text)[0];
+    expect(play.tasks[0].block[0]["ansible.builtin.debug"].msg).toBe(
+      "Updated work",
+    );
     expect(play.roles[0].role).toBe("renamed_demo");
     expect(play.tasks[0].rescue[0].always[0].name).toBe(
       "Updated nested cleanup",

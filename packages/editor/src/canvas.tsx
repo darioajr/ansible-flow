@@ -74,7 +74,11 @@ function Task({ data, selected }: NodeProps<TaskNode>) {
           variant="link"
           className="nodrag"
           size="sm"
-          onClick={() => s.navigate(s.bookId, s.playId, n.id)}
+          onClick={(event) => {
+            // Do not reselect the parent node after navigating into its scope.
+            event.stopPropagation();
+            s.navigate(s.bookId, s.playId, n.id);
+          }}
         >
           Open block →
         </Button>
