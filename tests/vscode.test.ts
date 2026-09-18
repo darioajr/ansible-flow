@@ -21,7 +21,12 @@ it("rejects stale updates and preserves unsupported original files", () => {
   const { playbook } = parsePlaybook(text);
   expect(() => editedDocument(text, 2, 1, playbook)).toThrow("changed");
   expect(() =>
-    editedDocument("- hosts: all\n  roles: [web]\n", 1, 1, playbook),
+    editedDocument(
+      "- hosts: all\n  import_playbook: other.yml\n",
+      1,
+      1,
+      playbook,
+    ),
   ).toThrow("Unsupported");
 });
 it("serializes bridge edits against actual document revisions", async () => {

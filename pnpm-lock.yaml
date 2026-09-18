@@ -71,6 +71,9 @@ importers:
       '@visual-ansible/generator':
         specifier: workspace:*
         version: link:../../../packages/generator
+      '@visual-ansible/module-metadata':
+        specifier: workspace:*
+        version: link:../../../packages/module-metadata
       '@visual-ansible/parser':
         specifier: workspace:*
         version: link:../../../packages/parser
@@ -257,6 +260,9 @@ importers:
       '@visual-ansible/air':
         specifier: workspace:*
         version: link:../air
+      '@visual-ansible/module-metadata':
+        specifier: workspace:*
+        version: link:../module-metadata
       zod:
         specifier: ^4.0.0
         version: 4.6.5

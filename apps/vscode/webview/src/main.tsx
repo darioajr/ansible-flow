@@ -1,3 +1,4 @@
+import { modules, type ModuleMetadata } from "@visual-ansible/module-metadata";
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Alert, Spinner } from "@patternfly/react-core";
@@ -17,6 +18,7 @@ const vscode = acquireVsCodeApi();
 function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
+  const [catalog, setCatalog] = useState<ModuleMetadata[]>(modules);
   const [error, setError] = useState("");
   const [unsupported, setUnsupported] = useState<string | null>(null);
   const bridge = useMemo(
@@ -37,6 +39,7 @@ function App() {
         },
         (message) => {
           if (message.type === "problems") setProblems(message.problems);
+          if (message.type === "modules") setCatalog(message.modules);
         },
       ),
     [],
@@ -53,6 +56,7 @@ function App() {
   const host = useMemo<EditorHost>(
     () => ({
       kind: "vscode",
+      modules: catalog,
       assetBase: document.body.dataset.monaco ?? "/monaco",
       autosave: false,
       changed: (p) => {
@@ -69,7 +73,7 @@ function App() {
         return [];
       },
     }),
-    [bridge],
+    [bridge, catalog],
   );
   if (unsupported !== null)
     return (
@@ -84,7 +88,7 @@ function App() {
         </Alert>
         {problems.map((p, i) => (
           <p key={i}>
-            {p.line ? `Line ${p.line}: ` : ""}
+            {p.line ? `Line ${p.line}:${p.column ?? 1}: ` : ""}
             {p.message}
           </p>
         ))}

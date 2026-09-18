@@ -10,4 +10,6 @@ Commands: Open Playbook Visually, Create Playbook, Validate Playbook, Show Gener
 
 Validation defaults to shared core rules. To use external checks, set `visualAnsible.validationTool` to `syntax-check` or `ansible-lint`. Install the selected binary in the active Extension Host (local or Remote SSH, WSL, Dev Container). External commands require Workspace Trust and a saved file. Opening a playbook never executes automation.
 
-This release targets VS Code Desktop and Remote Development, not a browser-only extension host. Roles, rescue/always, aliases and unsupported YAML tags require the text editor. Node positions are computed on reopen; no sidecar files are created.
+This release targets VS Code Desktop and Remote Development, not a browser-only extension host. Roles, pre/post tasks and nested block/rescue/always are supported. Aliases, import_playbook and unsupported YAML tags still require the text editor. Node positions are computed on reopen; no sidecar files are created.
+
+Run **Visual Ansible: Discover Ansible Modules** in a trusted workspace to load forms from ansible-doc in the active Extension Host. Configure `visualAnsible.ansibleDocPath` if needed. Select up to 20 modules at a time; metadata remains in memory for this workspace during the session.

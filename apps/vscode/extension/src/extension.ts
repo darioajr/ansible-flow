@@ -11,6 +11,13 @@ import { documentProblems } from "./document-service";
 import { ExtensionHostRunner, type AnsibleCommandRunner } from "./runner";
 import { webviewHtml } from "./webview";
 import { applyVisualEdit } from "./workspace-document";
+import {
+  modules,
+  mergeModules,
+  type ModuleMetadata,
+} from "@visual-ansible/module-metadata";
+import { listModules, loadModules } from "./module-discovery";
+import { cliProblems } from "./cli-diagnostics";
 const VIEW = "visualAnsible.playbook";
 class PlaybookTree implements vscode.TreeDataProvider<vscode.TreeItem> {
   private changed = new vscode.EventEmitter<void>();
@@ -61,6 +68,13 @@ export function activate(context: vscode.ExtensionContext) {
   const runner: AnsibleCommandRunner = new ExtensionHostRunner();
   const tree = new PlaybookTree();
   let active: vscode.TextDocument | undefined;
+  const catalogs = new Map<string, ModuleMetadata[]>();
+  const panels = new Map<vscode.WebviewPanel, vscode.TextDocument>();
+  const workspaceKey = (doc: vscode.TextDocument) =>
+    vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.toString() ??
+    doc.uri.toString();
+  const catalogFor = (doc: vscode.TextDocument) =>
+    catalogs.get(workspaceKey(doc)) ?? modules;
   const publish = (doc: vscode.TextDocument, problems: Problem[]) => {
     diagnostics.set(
       doc.uri,
@@ -69,7 +83,16 @@ export function activate(context: vscode.ExtensionContext) {
           Math.max((p.line ?? 1) - 1, 0),
           doc.lineCount - 1,
         );
-        const range = doc.lineAt(line).range;
+        const start = Math.min(
+          Math.max((p.column ?? 1) - 1, 0),
+          doc.lineAt(line).text.length,
+        );
+        const range = new vscode.Range(
+          line,
+          start,
+          line,
+          Math.max(start, doc.lineAt(line).text.length),
+        );
         const diagnostic = new vscode.Diagnostic(
           range,
           p.message,
@@ -87,7 +110,7 @@ export function activate(context: vscode.ExtensionContext) {
     doc: vscode.TextDocument,
     external = false,
   ): Promise<Problem[]> {
-    const problems = documentProblems(doc.getText());
+    const problems = documentProblems(doc.getText(), catalogFor(doc));
     if (external) {
       const config = vscode.workspace.getConfiguration(
         "visualAnsible",
@@ -118,51 +141,24 @@ export function activate(context: vscode.ExtensionContext) {
           args,
           path.dirname(doc.uri.fsPath),
         );
-        if (result.code !== 0) {
-          if (tool === "ansible-lint") {
-            try {
-              const entries: unknown = JSON.parse(result.stdout);
-              if (!Array.isArray(entries)) throw Error();
-              for (const item of entries) {
-                if (!item || typeof item !== "object") continue;
-                const r = item as {
-                  description?: string;
-                  message?: string;
-                  location?: { lines?: { begin?: number } };
-                };
-                problems.push({
-                  severity: "error",
-                  message: r.description ?? r.message ?? "Ansible lint failed.",
-                  line: r.location?.lines?.begin ?? 1,
-                });
-              }
-            } catch {
-              problems.push({
-                severity: "error",
-                message:
-                  "ansible-lint failed. Review the playbook with the CLI.",
-                line: 1,
-              });
-            }
-          } else
-            problems.push({
-              severity: "error",
-              message:
-                (result.stderr || result.stdout).slice(0, 4000) ||
-                "Ansible syntax check failed.",
-              line: Number(
-                (result.stderr || result.stdout).match(/line (\d+)/i)?.[1] ?? 1,
-              ),
-            });
-        }
+        problems.push(
+          ...cliProblems(tool, result, doc.uri.fsPath, doc.getText()),
+        );
       }
     }
     publish(doc, problems);
+    for (const [panel, document] of panels)
+      if (document.uri.toString() === doc.uri.toString())
+        void panel.webview.postMessage({
+          type: "problems",
+          problems,
+        } satisfies HostMessage);
     return problems;
   }
   const provider: vscode.CustomTextEditorProvider = {
     async resolveCustomTextEditor(document, panel) {
       active = document;
+      panels.set(panel, document);
       const root = vscode.Uri.joinPath(context.extensionUri, "media");
       panel.webview.options = {
         enableScripts: true,
@@ -193,7 +189,10 @@ export function activate(context: vscode.ExtensionContext) {
           dirty: document.isDirty,
           ...(requestId ? { requestId } : {}),
         });
-        publish(document, documentProblems(document.getText()));
+        publish(
+          document,
+          documentProblems(document.getText(), catalogFor(document)),
+        );
       };
       const change = vscode.workspace.onDidChangeTextDocument((e) => {
         if (e.document.uri.toString() === document.uri.toString())
@@ -213,6 +212,7 @@ export function activate(context: vscode.ExtensionContext) {
           if (disposed) return;
           try {
             if (msg.type === "ready") {
+              send({ type: "modules", modules: catalogFor(document) });
               update();
               return;
             }
@@ -270,6 +270,7 @@ export function activate(context: vscode.ExtensionContext) {
       });
       panel.onDidDispose(() => {
         disposed = true;
+        panels.delete(panel);
         change.dispose();
         saveEvent.dispose();
         state.dispose();
@@ -294,7 +295,9 @@ export function activate(context: vscode.ExtensionContext) {
     const parsed = parsePlaybook(doc.getText(), path.basename(uri.path));
     if (!parsed.playbook.plays.length) {
       void vscode.window.showErrorMessage(
-        "This file is not a supported Ansible playbook.",
+        parsed.problems
+          .map((p) => `Line ${p.line ?? 1}:${p.column ?? 1}: ${p.message}`)
+          .join("\n") || "This file is not an Ansible playbook.",
       );
       return;
     }
@@ -309,9 +312,76 @@ export function activate(context: vscode.ExtensionContext) {
         void vscode.window.showErrorMessage((e as Error).message);
       }
     };
+  async function discoverModules() {
+    if (!vscode.workspace.isTrusted)
+      throw new Error("Trust this workspace before running ansible-doc.");
+    const doc = active ?? vscode.window.activeTextEditor?.document;
+    if (!doc || doc.uri.scheme !== "file")
+      throw new Error("Open a filesystem-backed playbook first.");
+    const config = vscode.workspace.getConfiguration("visualAnsible", doc.uri);
+    const executable = config.get<string>("ansibleDocPath", "ansible-doc");
+    const cwd =
+      vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.fsPath ??
+      path.dirname(doc.uri.fsPath);
+    const choices = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Discovering Ansible modules",
+      },
+      () => listModules(runner, executable, cwd),
+    );
+    const selection = await vscode.window.showQuickPick(
+      choices.map(([label, description]) => ({ label, description })),
+      {
+        canPickMany: true,
+        title: "Load module forms (select up to 20)",
+        matchOnDescription: true,
+      },
+    );
+    if (!selection?.length) return;
+    if (!vscode.workspace.isTrusted)
+      throw new Error("Workspace trust is required to load Ansible metadata.");
+    const loaded = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Loading Ansible module metadata",
+      },
+      () =>
+        loadModules(
+          runner,
+          executable,
+          cwd,
+          selection.map((s) => s.label),
+        ),
+    );
+    const catalog = mergeModules([...catalogFor(doc), ...loaded]);
+    if (catalog.length > 2000)
+      throw new Error("The workspace catalog is limited to 2000 modules.");
+    catalogs.set(workspaceKey(doc), catalog);
+    for (const [panel, document] of panels)
+      if (workspaceKey(document) === workspaceKey(doc)) {
+        void panel.webview.postMessage({
+          type: "modules",
+          modules: catalog,
+        } satisfies HostMessage);
+        const problems = documentProblems(document.getText(), catalog);
+        publish(document, problems);
+        void panel.webview.postMessage({
+          type: "problems",
+          problems,
+        } satisfies HostMessage);
+      }
+    void vscode.window.showInformationMessage(
+      `Loaded ${loaded.length} module form(s) in this workspace. Metadata is kept for this VS Code session.`,
+    );
+  }
   context.subscriptions.push(
     diagnostics,
     tree,
+    vscode.commands.registerCommand(
+      "visualAnsible.discoverModules",
+      wrap(discoverModules),
+    ),
     vscode.window.registerTreeDataProvider("visualAnsible.playbooks", tree),
     vscode.window.registerCustomEditorProvider(VIEW, provider, {
       supportsMultipleEditorsPerDocument: true,
@@ -374,5 +444,5 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidSaveTextDocument(() => tree.refresh()),
   );
   // Read-only access useful for automated Extension Host verification.
-  return { viewType: VIEW, diagnostics, open, validate };
+  return { viewType: VIEW, diagnostics, open, validate, discoverModules };
 }

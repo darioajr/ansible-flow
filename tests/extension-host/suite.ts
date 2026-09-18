@@ -73,6 +73,33 @@ export async function run() {
     parsePlaybook(reopened.getText()).playbook.plays[0].tasks[0].module!.fqcn,
     "ansible.builtin.dnf",
   );
+  const recoveryUri = vscode.Uri.joinPath(folder, "recovery.yml");
+  await vscode.workspace.fs.writeFile(
+    recoveryUri,
+    Buffer.from(
+      "- hosts: all\n  vars:\n    - flag: yes\n  roles: [demo]\n  tasks:\n    - name: Recoverable\n      block:\n        - debug: {msg: work}\n      rescue:\n        - debug: {msg: before}\n      always:\n        - debug: {msg: cleanup}\n",
+    ),
+  );
+  const recovery = await vscode.workspace.openTextDocument(recoveryUri);
+  await api.open(recoveryUri);
+  const model = parsePlaybook(recovery.getText()).playbook;
+  model.plays[0].roles![0].role!.name = "updated_role";
+  model.plays[0].tasks[0].rescue![0].module!.args.msg = "recovered";
+  await applyVisualEdit(recovery, recovery.version, model);
+  await recovery.save();
+  const reparsed = parsePlaybook(await readFile(recoveryUri.fsPath, "utf8"));
+  assert.equal(reparsed.editable, true);
+  assert.equal(reparsed.playbook.plays[0].roles![0].role!.name, "updated_role");
+  assert.equal(
+    reparsed.playbook.plays[0].tasks[0].rescue![0].module!.args.msg,
+    "recovered",
+  );
+  assert.equal((await api.validate(recovery)).length, 0);
+  assert.ok(
+    (await vscode.commands.getCommands()).includes(
+      "visualAnsible.discoverModules",
+    ),
+  );
   console.log(
     "Extension Host: open, WorkspaceEdit, native save/undo/redo, diagnostics and reopen passed.",
   );

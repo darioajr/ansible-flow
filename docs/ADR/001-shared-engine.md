@@ -17,3 +17,7 @@ Decisões:
 9. Metadados locais extensíveis, parser de ansible-doc compartilhado; discovery dinâmico permanece para a próxima fase.
 
 Consequências: o mesmo input AIR produz o mesmo YAML nos dois clientes. O VS Code exige host Node, enquanto o núcleo permanece compatível com browser. Não se implementam Git, execução, RBAC ou Operator nesta fase.
+
+## Atualização — 18/09/2026
+
+A descoberta de metadados prevista no item 9 foi implementada no Extension Host, com cache por workspace na sessão e distribuição por mensagens validadas. O editor recebe o catálogo pela porta `EditorHost`, preservando a independência de plataforma.

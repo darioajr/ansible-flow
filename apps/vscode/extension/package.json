@@ -1,6 +1,6 @@
 {
   "name": "visual-ansible-extension",
-  "displayName": "Visual Ansible — Playbook Flow",
+  "displayName": "Visual Ansible \u2014 Playbook Flow",
   "description": "Visual Ansible authoring using the shared Playbook Flow engine.",
   "version": "0.2.0",
   "publisher": "playbook-flow",
@@ -27,7 +27,8 @@
       "restrictedConfigurations": [
         "visualAnsible.ansiblePath",
         "visualAnsible.lintPath",
-        "visualAnsible.validationTool"
+        "visualAnsible.validationTool",
+        "visualAnsible.ansibleDocPath"
       ]
     }
   },
@@ -52,6 +53,10 @@
       {
         "command": "visualAnsible.refresh",
         "title": "Visual Ansible: Refresh Playbooks"
+      },
+      {
+        "command": "visualAnsible.discoverModules",
+        "title": "Visual Ansible: Discover Ansible Modules"
       }
     ],
     "customEditors": [
@@ -110,6 +115,12 @@
           "default": "ansible-lint",
           "scope": "machine-overridable",
           "description": "Lint executable in the Extension Host environment."
+        },
+        "visualAnsible.ansibleDocPath": {
+          "type": "string",
+          "default": "ansible-doc",
+          "scope": "machine-overridable",
+          "description": "ansible-doc executable in the active Extension Host; discovery requires Workspace Trust."
         }
       }
     }
@@ -124,6 +135,7 @@
     "@visual-ansible/generator": "workspace:*",
     "@visual-ansible/validator": "workspace:*",
     "@visual-ansible/schemas": "workspace:*",
-    "@visual-ansible/webview": "workspace:*"
+    "@visual-ansible/webview": "workspace:*",
+    "@visual-ansible/module-metadata": "workspace:*"
   }
 }

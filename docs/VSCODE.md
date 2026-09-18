@@ -23,3 +23,13 @@ CSP começa com default-src none, scripts com nonce e origem restrita aos recurs
 Validação padrão é core. Configure `visualAnsible.validationTool` para syntax-check ou ansible-lint e caminhos correspondentes. Execute Validate explicitamente; o documento deve estar salvo para checks externos. Nenhum playbook é executado ao abrir, e execução de automação não está implementada.
 
 `pnpm test:extension` baixa VS Code isolado e testa ativação, custom editor, WorkspaceEdit, dirty/save, undo/redo, diagnostics e reabertura. E2E Playwright também carrega o editor Vite e exercita o protocolo com o mesmo serviço de documentos.
+
+## Descobrir módulos instalados
+
+1. Abra um playbook em um workspace confiável.
+2. Execute **Visual Ansible: Discover Ansible Modules** na paleta.
+3. Selecione até 20 módulos por vez. Os formulários entram no catálogo de todas as Webviews desse workspace.
+
+Configure `visualAnsible.ansibleDocPath` quando `ansible-doc` não estiver no PATH do Extension Host. A descoberta usa `ansible-doc --list --json --type module` e carrega a documentação JSON dos módulos selecionados. Metadados ficam na memória da sessão e podem ser recarregados pelo mesmo comando; não há instalação automática de collections. O Web continua usando o catálogo incluído.
+
+Diagnostics externos interpretam os formatos atual e legado do syntax-check e localizações JSON do ansible-lint. O comando de validação também atualiza Problems na Webview. Mensagens de outros arquivos mantêm o nome do arquivo no texto em vez de selecionar incorretamente um nó do playbook atual. A edição visual permite pre-tasks, roles, tasks, post-tasks e handlers; blocos expõem as sequências block/rescue/always.

@@ -28,12 +28,13 @@ Alternativa: VS Code → Extensions → **Install from VSIX…**. Abra seu works
 - Defina hosts e `become` em **Play properties**. Clique no fundo do canvas para retornar às propriedades do play.
 - Arraste módulos do catálogo ou use `+`; clique no nó para configurar argumentos.
 - Conecte uma saída à entrada de outra tarefa: o destino passa a executar logo após a origem. As arestas representam uma sequência, sem ciclos ou branching.
-- Use **Block → Edit block tasks** para filhos, **Condition** e **Loop** para presets de comportamento. O módulo pode ser alterado.
+- Use **Block → Edit block tasks / Edit rescue tasks / Edit always tasks** para editar cada sequência. Blocos podem ser aninhados. **Condition** e **Loop** configuram o comportamento das tarefas.
+- Use **Roles** e **Add Role** para referências de roles do play; **Pre-tasks** e **Post-tasks** preservam sua ordem em relação às roles. Para incluir/importar uma role dentro de tasks, use os módulos `include_role`/`import_role`.
 - Defina handlers na aba **Handlers** e referencie seus nomes em **Notify handlers**.
 - Use **YAML editor** (Web) ou **YAML preview** (VS Code), **Validate**, **Save** e, no Web, **Export YAML**.
 - No Web, **YAML editor** permite editar: altere o texto e clique em **Apply to diagram**. A aplicação valida o YAML, atualiza o diagrama e salva automaticamente. **Discard draft** retorna ao YAML atual do diagrama. Enquanto houver rascunho, a edição visual e a troca de playbook ficam pausadas; salvar ou sair pelos links exige aplicar ou descartar. Erros mantêm o texto para correção. Aplicar recalcula o layout do playbook ativo e pode ser desfeito/refeito; os demais playbooks não são alterados.
 
-Os 15 módulos builtin previstos estão disponíveis. Campos complexos (loops, variáveis, environment, set_fact) usam JSON. Ctrl/Cmd+Z, Shift+Z, C, V, D, S e F, Delete, seleção múltipla e minimapa estão implementados. Clipboard é interno ao editor. O Web mantém 100 snapshots e autosave após 1 segundo; o VS Code usa o histórico e estado dirty nativos do documento.
+O catálogo inclui 20 módulos: os 15 builtin do MVP, `apt`, `replace`, `community.general.ufw`, `include_role` e `import_role`. Campos complexos (loops, variáveis, environment, set_fact) usam JSON. Ctrl/Cmd+Z, Shift+Z, C, V, D, S e F, Delete, seleção múltipla e minimapa estão implementados. Clipboard é interno ao editor. O Web mantém 100 snapshots e autosave após 1 segundo; o VS Code usa o histórico e estado dirty nativos do documento.
 
 ## Monorepo
 
@@ -94,12 +95,14 @@ Ajuste imagem/registry antes de aplicar. Manifests usam uma réplica com PVC, us
 
 - Web é modo local de autoria; RBAC, colaboração, Git, execução, AAP/AWX, inventários, Helm e Operator continuam nas fases futuras.
 - Persistência Web em JSON atômico, UUID e revisão otimista: **uma réplica/processo**. PostgreSQL e histórico persistente são evolução do adapter.
-- Importação cobre plays, módulos, tasks, block, handlers, when, loop, register, notify e opções comuns. Roles, rescue/always, aliases, tags explícitas e construtos não representados bloqueiam escrita visual; o arquivo original é preservado. Veja [contrato de importação](docs/ARCHITECTURE.md).
+- Importação cobre plays, módulos, tasks, block, handlers, when, loop, register, notify e opções comuns. Roles, pre/post tasks e blocos com rescue/always são suportados. Aliases, tags explícitas, import_playbook e construtos não representados bloqueiam escrita visual; o arquivo original é preservado. Veja [contrato de importação](docs/ARCHITECTURE.md).
 - O gerador preserva comentários e valores; pode normalizar nomes de módulos, aspas e formatação. Não promete preservação byte a byte.
 - Web valida AIR/metadados. VS Code pode executar syntax-check ou lint mediante comando explícito, Workspace Trust e ferramentas instaladas no Extension Host. Nenhum playbook é executado pela aplicação.
 - VS Code Desktop e Remote Development são alvos; `vscode.dev` sem host Node não está incluído.
-- Metadados incluídos cobrem argumentos comuns. O parser de `ansible-doc` está compartilhado; descoberta dinâmica na UI ainda é futura.
+- Metadados incluídos cobrem argumentos comuns. No VS Code, execute **Visual Ansible: Discover Ansible Modules** para carregar formulários do `ansible-doc` do Extension Host (workspace confiável; até 20 módulos por seleção; cache por workspace durante a sessão). O Web usa o catálogo incluído.
 - Não armazene segredos. Valores de campos sensíveis conhecidos são recusados no Web; texto livre não é varrido por um detector completo. Use referências Jinja e credenciais externas. No VS Code o YAML pertence ao usuário e segue o fluxo nativo de arquivos.
 - Layout de nós é salvo no projeto Web; no VS Code o YAML permanece o único arquivo e o layout é calculado ao reabrir.
 
 Detalhes: [arquitetura](docs/ARCHITECTURE.md), [API](docs/API.md), [VS Code](docs/VSCODE.md), [desenvolvimento](docs/DEVELOPMENT.md), [ADR](docs/ADR/001-shared-engine.md).
+
+Detalhes das novas estruturas, exemplos e limites: [compatibilidade Ansible](docs/ANSIBLE-COMPATIBILITY.md).

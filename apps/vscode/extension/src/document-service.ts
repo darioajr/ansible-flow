@@ -1,3 +1,4 @@
+import { modules, type ModuleMetadata } from "@visual-ansible/module-metadata";
 import { parsePlaybook } from "@visual-ansible/parser";
 import { generateYaml } from "@visual-ansible/generator";
 import { validatePlaybook } from "@visual-ansible/validator";
@@ -31,10 +32,13 @@ export function editedDocument(
     throw new Error("Generated document contains unsupported constructs.");
   return proposed;
 }
-export function documentProblems(text: string): Problem[] {
+export function documentProblems(
+  text: string,
+  catalog: ModuleMetadata[] = modules,
+): Problem[] {
   const parsed = parsePlaybook(text);
   return [
     ...parsed.problems,
-    ...(parsed.editable ? validatePlaybook(parsed.playbook) : []),
+    ...(parsed.editable ? validatePlaybook(parsed.playbook, catalog) : []),
   ];
 }

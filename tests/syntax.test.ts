@@ -1,5 +1,5 @@
 import { it, expect } from "vitest";
-import { readFile, mkdtemp, writeFile, rm } from "node:fs/promises";
+import { readFile, mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -26,6 +26,80 @@ it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
         },
       );
       expect(out).toContain("playbook:");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
+  "real Ansible accepts roles, nested rescue/always and vars lists after generation",
+  async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "visual-roles-syntax-"));
+    try {
+      await mkdir(path.join(dir, "roles/demo/tasks"), { recursive: true });
+      await writeFile(
+        path.join(dir, "roles/demo/tasks/main.yml"),
+        "- name: Role task\n  ansible.builtin.debug: {msg: role}\n",
+      );
+      const text = await readFile(
+        new URL("./fixtures/roles-blocks.yml", import.meta.url),
+        "utf8",
+      );
+      const target = path.join(dir, "playbook.yml");
+      await writeFile(target, generateYaml(parsePlaybook(text).playbook));
+      const out = execFileSync(
+        "ansible-playbook",
+        ["--syntax-check", "-i", "localhost,", target],
+        {
+          encoding: "utf8",
+          cwd: dir,
+          env: { ...process.env, ANSIBLE_LOCAL_TEMP: path.join(dir, "tmp") },
+          timeout: 30000,
+        },
+      );
+      expect(out).toContain("playbook:");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+it.skipIf(process.env.RUN_ANSIBLE_SYNTAX !== "1")(
+  "real ansible-doc produces usable discovered forms",
+  async () => {
+    const { listModules, loadModules } =
+      await import("../apps/vscode/extension/src/module-discovery");
+    const dir = await mkdtemp(path.join(tmpdir(), "visual-doc-"));
+    try {
+      const runner = {
+        execute: async (command: string, args: string[], cwd: string) => ({
+          code: 0,
+          stderr: "",
+          stdout: execFileSync(command, args, {
+            cwd,
+            encoding: "utf8",
+            env: { ...process.env, ANSIBLE_LOCAL_TEMP: path.join(dir, "tmp") },
+            timeout: 30000,
+            maxBuffer: 1_000_000,
+          }),
+        }),
+      };
+      const available = await listModules(runner, "ansible-doc", dir);
+      expect(available.some(([fqcn]) => fqcn === "ansible.builtin.debug")).toBe(
+        true,
+      );
+      const loaded = await loadModules(runner, "ansible-doc", dir, [
+        "ansible.builtin.debug",
+        "ansible.builtin.apt",
+      ]);
+      expect(
+        loaded.find((m) => m.fqcn === "ansible.builtin.debug")!.parameters.msg,
+      ).toBeDefined();
+      expect(
+        loaded.find((m) => m.fqcn === "ansible.builtin.apt")!.parameters
+          .update_cache.type,
+      ).toBe("boolean");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
