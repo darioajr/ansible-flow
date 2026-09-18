@@ -6,3 +6,5 @@
 !NOTICE
 !dist/extension.cjs
 !media/**
+
+!images/icon.png
