@@ -12,3 +12,5 @@ apps/vscode/extension/media/
 playwright-report/
 test-results/
 .vscode-test/
+
+**/next-env.d.ts
