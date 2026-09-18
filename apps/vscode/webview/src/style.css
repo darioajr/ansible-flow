@@ -1,0 +1,27 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+body {
+  background: var(--vscode-editor-background, #fff);
+  color: var(--vscode-editor-foreground, #25364b);
+}
+.loading,
+.unsupported {
+  padding: 24px;
+}
+.unsupported pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 20px;
+}
+.vscode-editor {
+  height: 100vh !important;
+  min-width: 620px;
+}
+.vscode-editor .editor-eyebrow {
+  color: var(--vscode-descriptionForeground, #6b809c);
+}

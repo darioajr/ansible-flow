@@ -1,0 +1,129 @@
+{
+  "name": "visual-ansible-extension",
+  "displayName": "Visual Ansible — Playbook Flow",
+  "description": "Visual Ansible authoring using the shared Playbook Flow engine.",
+  "version": "0.2.0",
+  "publisher": "playbook-flow",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization"
+  ],
+  "main": "./dist/extension.cjs",
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onCustomEditor:visualAnsible.playbook",
+    "onView:visualAnsible.playbooks"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Visual editing is available; external Ansible commands require Workspace Trust.",
+      "restrictedConfigurations": [
+        "visualAnsible.ansiblePath",
+        "visualAnsible.lintPath",
+        "visualAnsible.validationTool"
+      ]
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "visualAnsible.open",
+        "title": "Visual Ansible: Open Playbook Visually"
+      },
+      {
+        "command": "visualAnsible.create",
+        "title": "Visual Ansible: Create Playbook"
+      },
+      {
+        "command": "visualAnsible.validate",
+        "title": "Visual Ansible: Validate Playbook"
+      },
+      {
+        "command": "visualAnsible.showYaml",
+        "title": "Visual Ansible: Show Generated YAML"
+      },
+      {
+        "command": "visualAnsible.refresh",
+        "title": "Visual Ansible: Refresh Playbooks"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "visualAnsible.playbook",
+        "displayName": "Visual Ansible Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.yml"
+          },
+          {
+            "filenamePattern": "*.yaml"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "visualAnsible.playbooks",
+          "name": "Visual Ansible Playbooks"
+        }
+      ]
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "visualAnsible.open",
+          "when": "resourceExtname == .yml || resourceExtname == .yaml",
+          "group": "navigation@10"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Visual Ansible",
+      "properties": {
+        "visualAnsible.validationTool": {
+          "type": "string",
+          "enum": [
+            "core",
+            "syntax-check",
+            "ansible-lint"
+          ],
+          "default": "core",
+          "description": "External validation is explicit, runs in the active Extension Host and requires Workspace Trust."
+        },
+        "visualAnsible.ansiblePath": {
+          "type": "string",
+          "default": "ansible-playbook",
+          "scope": "machine-overridable",
+          "description": "Ansible executable in the Extension Host environment."
+        },
+        "visualAnsible.lintPath": {
+          "type": "string",
+          "default": "ansible-lint",
+          "scope": "machine-overridable",
+          "description": "Lint executable in the Extension Host environment."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "package": "vsce package --no-dependencies --allow-missing-repository"
+  },
+  "dependencies": {
+    "@visual-ansible/air": "workspace:*",
+    "@visual-ansible/parser": "workspace:*",
+    "@visual-ansible/generator": "workspace:*",
+    "@visual-ansible/validator": "workspace:*",
+    "@visual-ansible/schemas": "workspace:*",
+    "@visual-ansible/webview": "workspace:*"
+  }
+}

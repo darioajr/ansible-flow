@@ -1,0 +1,27 @@
+{
+  "name": "@visual-ansible/webview",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@visual-ansible/air": "workspace:*",
+    "@visual-ansible/schemas": "workspace:*",
+    "@visual-ansible/generator": "workspace:*",
+    "@visual-ansible/parser": "workspace:*",
+    "@visual-ansible/validator": "workspace:*",
+    "@visual-ansible/module-metadata": "workspace:*",
+    "@visual-ansible/editor": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@patternfly/react-core": "^6.0.0",
+    "@xyflow/react": "^12.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0",
+    "@vitejs/plugin-react": "^5.0.0"
+  }
+}
