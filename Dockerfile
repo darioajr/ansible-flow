@@ -13,6 +13,9 @@ RUN pnpm prepare:assets && pnpm --filter @visual-ansible/web build
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
+# The standalone server only needs Node; package managers are build-time tools.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 DATA_DIR=/data
 COPY --from=builder --chown=1001:0 /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=1001:0 /app/apps/web/.next/static ./apps/web/.next/static
