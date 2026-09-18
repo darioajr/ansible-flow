@@ -116,3 +116,30 @@ it("rejects literal credentials before creating an imported project", async () =
   expect(response.status).toBe(422);
   expect(await (await request("GET", ["projects"])).json()).toEqual([]);
 });
+
+it.each([
+  ["http://localhost:3000", "localhost:3000", 201],
+  ["http://127.0.0.1:8081", "127.0.0.1:8081", 201],
+  ["http://localhost:3001", "localhost:3000", 403],
+  ["https://localhost:3000", "localhost:3000", 403],
+  ["https://other.example", "localhost:3000", 403],
+  ["null", "localhost:3000", 403],
+])(
+  "checks browser origin %s against public Host %s",
+  async (origin, host, status) => {
+    const response = await POST(
+      new Request("http://0.0.0.0:3000/api/v1/projects", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          host,
+          origin,
+          "x-forwarded-host": "other.example",
+        },
+        body: JSON.stringify({ name: "Container" }),
+      }),
+      { params: Promise.resolve({ path: ["projects"] }) },
+    );
+    expect(response.status).toBe(status);
+  },
+);

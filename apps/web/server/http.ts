@@ -37,7 +37,14 @@ export function errorResponse(error: unknown) {
 }
 export async function body(request: Request) {
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
+  // Standalone Next.js uses its bind address in request.url (e.g. 0.0.0.0).
+  // Host carries the browser-facing authority, including a mapped port.
+  const url = new URL(request.url);
+  const host = request.headers.get("host");
+  const expectedOrigin = host
+    ? new URL(`${url.protocol}//${host}`).origin
+    : url.origin;
+  if (origin && origin !== expectedOrigin)
     throw new AppError(
       403,
       "ORIGIN_REJECTED",
