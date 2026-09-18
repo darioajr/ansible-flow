@@ -1,0 +1,40 @@
+name: Verify
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pipx install ansible-core
+      - run: RUN_ANSIBLE_SYNTAX=1 pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: xvfb-run -a node scripts/test-extension.mjs
+      - run: pnpm --filter visual-ansible-extension package
+      - run: docker build -t playbook-flow:ci .
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: playbook-flow:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vscode-extension
+          path: apps/vscode/extension/*.vsix
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-results
+          path: test-results/

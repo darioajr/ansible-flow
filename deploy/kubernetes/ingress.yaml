@@ -1,0 +1,17 @@
+# Configure your hostname and an authenticated ingress before exposing local mode.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: playbook-flow
+spec:
+  rules:
+    - host: playbook-flow.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: playbook-flow
+                port:
+                  name: http

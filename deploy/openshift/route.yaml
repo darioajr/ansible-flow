@@ -1,0 +1,14 @@
+# Configure authentication at the proxy before exposing the local workspace.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: playbook-flow
+spec:
+  to:
+    kind: Service
+    name: playbook-flow
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

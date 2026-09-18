@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/dist
+**/media
+**/public/monaco
+.git
+.turbo
+.vscode-test
+**/data
+**/.env*
+**/*.vsix
+**/*.tsbuildinfo
+test-results
+playwright-report
