@@ -14,3 +14,4 @@ test-results/
 .vscode-test/
 
 **/next-env.d.ts
+/spec.md
