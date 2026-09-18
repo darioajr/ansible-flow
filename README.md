@@ -68,6 +68,17 @@ A CI inclui testes, builds Web/Vite/Extension Host, E2E nas duas superfícies, t
 
 ## Containers e clusters
 
+Com Podman (no macOS, a VM deve estar ligada com `podman machine start`):
+
+```bash
+podman build --format docker -t localhost/playbook-flow:0.2.0 .
+podman run --rm --name playbook-flow -p 127.0.0.1:3000:3000 --read-only --tmpfs /tmp -v playbook-flow-data:/data localhost/playbook-flow:0.2.0
+```
+
+Abra http://localhost:3000. O volume `playbook-flow-data` preserva os projetos entre execuções. `--format docker` mantém o `HEALTHCHECK` da imagem, que o formato OCI padrão do Podman ignora.
+
+Com Docker ou para aplicar os manifests no cluster:
+
 ```bash
 docker build -t playbook-flow:0.2.0 .
 docker run --rm -p 3000:3000 --read-only --tmpfs /tmp -v playbook-flow-data:/data playbook-flow:0.2.0
