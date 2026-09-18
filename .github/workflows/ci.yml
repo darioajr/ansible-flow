@@ -24,7 +24,7 @@ jobs:
       - run: xvfb-run -a node scripts/test-extension.mjs
       - run: pnpm --filter visual-ansible-extension package
       - run: docker build -t playbook-flow:ci .
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: playbook-flow:ci
           severity: CRITICAL,HIGH
