@@ -1,0 +1,161 @@
+name: Publish container images
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish images (false only builds and scans)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-release
+  cancel-in-progress: false
+
+env:
+  DOCKERHUB_IMAGE: docker.io/darioajr/ansible-flow
+  GHCR_IMAGE: ghcr.io/darioajr/ansible-flow
+  QUAY_IMAGE: quay.io/darioajr/ansible-flow
+
+jobs:
+  build:
+    name: Build and scan (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate version
+        id: release
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
+          if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) throw new Error('Expected stable version X.Y.Z');
+          if (process.env.GITHUB_EVENT_NAME === 'push' && process.env.GITHUB_REF_NAME !== `v${version}`) throw new Error('Tag must match package.json version');
+          appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+          JS
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: playbook-flow:scan
+          platforms: linux/${{ matrix.arch }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.release.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
+          cache-from: type=gha,scope=container-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=container-${{ matrix.arch }}
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: playbook-flow:scan
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Check runtime
+        run: |
+          docker run -d --name smoke --read-only --tmpfs /tmp --tmpfs /data:rw,mode=1777 playbook-flow:scan
+          trap 'docker logs smoke; docker rm -f smoke' EXIT
+          for attempt in $(seq 1 30); do
+            echo "Readiness attempt $attempt/30"
+            if docker exec smoke node -e "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push' || inputs.publish
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push' || inputs.publish
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push' || inputs.publish
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USER }}
+          password: ${{ secrets.QUAY_TOKEN }}
+      - name: Push scanned architecture
+        if: github.event_name == 'push' || inputs.publish
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          for image in "$DOCKERHUB_IMAGE" "$GHCR_IMAGE" "$QUAY_IMAGE"; do
+            tag="$image:build-$GITHUB_RUN_ID-$ARCH"
+            docker tag playbook-flow:scan "$tag"
+            docker push "$tag"
+          done
+
+  publish:
+    name: Publish multi-architecture tags
+    needs: build
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USER }}
+          password: ${{ secrets.QUAY_TOKEN }}
+      - name: Publish version and latest
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for image in "$DOCKERHUB_IMAGE" "$GHCR_IMAGE" "$QUAY_IMAGE"; do
+            docker buildx imagetools create \
+              --tag "$image:$version" --tag "$image:latest" \
+              "$image:build-$GITHUB_RUN_ID-amd64" \
+              "$image:build-$GITHUB_RUN_ID-arm64"
+            docker buildx imagetools inspect "$image:$version"
+            echo "Published: $image:$version (linux/amd64, linux/arm64)" >> "$GITHUB_STEP_SUMMARY"
+          done

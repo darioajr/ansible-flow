@@ -86,15 +86,29 @@ Os campos **Play variables (JSON)** e **All arguments (JSON object)** crescem at
 
 ## Executar com Podman ou Docker
 
-Com Podman no macOS, inicie a VM previamente com `podman machine start`:
+Após publicar a release, a mesma imagem estará disponível como
+`docker.io/darioajr/ansible-flow:0.1.0`, `ghcr.io/darioajr/ansible-flow:0.1.0`
+e `quay.io/darioajr/ansible-flow:0.1.0`, para AMD64 e ARM64:
 
 ```bash
-podman build --format docker -t localhost/playbook-flow:0.2.0 .
 podman run --rm --name playbook-flow \
   -p 127.0.0.1:3000:3000 \
   --read-only --tmpfs /tmp \
   -v playbook-flow-data:/data \
-  localhost/playbook-flow:0.2.0
+  ghcr.io/darioajr/ansible-flow:0.1.0
+```
+
+Para construir localmente:
+
+Com Podman no macOS, inicie a VM previamente com `podman machine start`:
+
+```bash
+podman build --format docker -t localhost/playbook-flow:0.1.0 .
+podman run --rm --name playbook-flow \
+  -p 127.0.0.1:3000:3000 \
+  --read-only --tmpfs /tmp \
+  -v playbook-flow-data:/data \
+  localhost/playbook-flow:0.1.0
 ```
 
 O volume preserva os projetos. `--format docker` mantém o `HEALTHCHECK` da imagem.
@@ -102,12 +116,12 @@ O volume preserva os projetos. `--format docker` mantém o `HEALTHCHECK` da imag
 Com Docker:
 
 ```bash
-docker build -t playbook-flow:0.2.0 .
+docker build -t playbook-flow:0.1.0 .
 docker run --rm --name playbook-flow \
   -p 127.0.0.1:3000:3000 \
   --read-only --tmpfs /tmp \
   -v playbook-flow-data:/data \
-  playbook-flow:0.2.0
+  playbook-flow:0.1.0
 ```
 
 Existem manifests iniciais em [deploy/kubernetes](deploy/kubernetes) e [deploy/openshift](deploy/openshift). Ajuste registry, imagem, armazenamento e acesso antes de aplicar. Eles usam uma réplica com PVC; a homologação completa em clusters permanece no roadmap.
@@ -148,7 +162,7 @@ Para contribuir, descreva o problema, mantenha as regras de domínio nos pacotes
 
 [Publish VS Code Extension](.github/workflows/publish.yml) valida a versão, gera o VSIX e publica no Marketplace com o publisher `darioajr`. Tags `vX.Y.Z` iniciam a publicação; a execução manual permite apenas validar e empacotar. Releases por tag anexam o VSIX ao GitHub após sucesso no Marketplace.
 
-Configure o ambiente `production` e o secret `VSCE_PAT` conforme [PUBLISHING.md](docs/PUBLISHING.md). A versão da tag deve coincidir com a do manifesto da extensão. A publicação de imagens ainda não está implementada.
+Configure o ambiente `production` e o secret `VSCE_PAT` conforme [PUBLISHING.md](docs/PUBLISHING.md). A versão da tag deve coincidir com a do manifesto da extensão. [Publish container images](.github/workflows/publish-images.yml) publica imagens AMD64 e ARM64 no Docker Hub, GHCR e Quay após scan Trivy e teste de inicialização. Consulte [publicação de imagens](docs/PUBLISHING-IMAGES.md) para configurar os registries.
 
 ## Limites atuais
 
