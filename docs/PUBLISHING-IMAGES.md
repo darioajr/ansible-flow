@@ -38,7 +38,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Essa tag também dispara o workflow existente do Marketplace; mantenha a versão do manifesto da extensão alinhada e configure `VSCE_PAT` para esse fluxo. As publicações de imagens e extensão são independentes.
+Essa tag também dispara o workflow existente do Marketplace; mantenha a versão do manifesto da extensão alinhada e configure `VSCE_PAT` e `OVSX_PAT` para esse fluxo. As publicações de imagens e extensão são independentes.
 
 Se a tag já existir ou você quiser publicar somente as imagens, execute manualmente **Publish container images** selecionando a tag da release e marque `publish`. O workflow usa a versão de `package.json` daquela referência.
 

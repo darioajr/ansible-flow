@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       publish:
-        description: "Publish to Marketplace (false only validates and packages)"
+        description: "Publish to Marketplace and Open VSX (false only validates and packages)"
         type: boolean
         default: false
 
@@ -112,9 +112,43 @@ jobs:
           fi
           pnpm exec vsce publish --packagePath "release/$VSIX_FILE"
 
+  publish-openvsx:
+    name: Publish to Open VSX Registry
+    needs: package
+    if: github.event_name == 'push' || inputs.publish == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketplace-vsix
+          path: release
+      - name: Publish the validated VSIX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          VSIX_FILE: ${{ needs.package.outputs.vsix }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::error::Configure OVSX_PAT in the production environment."
+            exit 1
+          fi
+          pnpm exec ovsx publish --packagePath "release/$VSIX_FILE"
+
   create-release:
     name: Attach VSIX to GitHub Release
-    needs: [package, publish-marketplace]
+    needs: [package, publish-marketplace, publish-openvsx]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 5

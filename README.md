@@ -61,7 +61,7 @@ Também é possível usar **Extensions → Install from VSIX…**. O nome do arq
 
 Abra um workspace e execute **Visual Ansible: Open Playbook Visually**, ou clique com o botão direito em um YAML e escolha **Open With → Visual Ansible Editor**. A extensão não substitui o editor padrão de todos os arquivos YAML.
 
-O publisher configurado é `darioajr`, com ID `darioajr.visual-ansible-extension`. Se usava o VSIX antigo com publisher `playbook-flow`, desinstale a extensão anterior para evitar comandos duplicados. O pipeline está preparado; a publicação no Marketplace ainda depende da configuração e execução da release.
+O publisher configurado é `darioajr`, com ID `darioajr.visual-ansible-extension`. Se usava o VSIX antigo com publisher `playbook-flow`, desinstale a extensão anterior para evitar comandos duplicados. O pipeline publica no VS Code Marketplace e no Open VSX (VSCodium, Cursor, Windsurf, Gitpod, Theia) a partir da mesma release.
 
 Para validar com Ansible, instale as ferramentas no ambiente do Extension Host e configure `visualAnsible.validationTool`. Em workspaces confiáveis, **Visual Ansible: Discover Ansible Modules** carrega metadados de até 20 módulos por seleção usando `ansible-doc`. Funciona com VS Code Desktop e Remote Development; não há suporte a um Extension Host exclusivamente no navegador.
 
@@ -160,9 +160,9 @@ Para contribuir, descreva o problema, mantenha as regras de domínio nos pacotes
 
 [Verify](.github/workflows/ci.yml) executa lint, tipos, testes, builds, E2E, testes nativos do VS Code, empacotamento, build do container e scan Trivy.
 
-[Publish VS Code Extension](.github/workflows/publish.yml) valida a versão, gera o VSIX e publica no Marketplace com o publisher `darioajr`. Tags `vX.Y.Z` iniciam a publicação; a execução manual permite apenas validar e empacotar. Releases por tag anexam o VSIX ao GitHub após sucesso no Marketplace.
+[Publish VS Code Extension](.github/workflows/publish.yml) valida a versão, gera o VSIX e publica no Marketplace e no Open VSX com o publisher `darioajr`. Tags `vX.Y.Z` iniciam a publicação; a execução manual permite apenas validar e empacotar. Releases por tag anexam o VSIX ao GitHub após sucesso nos dois registros.
 
-Configure o ambiente `production` e o secret `VSCE_PAT` conforme [PUBLISHING.md](docs/PUBLISHING.md). A versão da tag deve coincidir com a do manifesto da extensão. [Publish container images](.github/workflows/publish-images.yml) publica imagens AMD64 e ARM64 no Docker Hub, GHCR e Quay após scan Trivy e teste de inicialização. Consulte [publicação de imagens](docs/PUBLISHING-IMAGES.md) para configurar os registries.
+Configure o ambiente `production` e os secrets `VSCE_PAT` e `OVSX_PAT` conforme [PUBLISHING.md](docs/PUBLISHING.md). A versão da tag deve coincidir com a do manifesto da extensão. [Publish container images](.github/workflows/publish-images.yml) publica imagens AMD64 e ARM64 no Docker Hub, GHCR e Quay após scan Trivy e teste de inicialização. Consulte [publicação de imagens](docs/PUBLISHING-IMAGES.md) para configurar os registries.
 
 ## Limites atuais
 
