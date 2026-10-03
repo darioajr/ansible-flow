@@ -62,6 +62,10 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - uses: actions/cache@v4
+        with:
+          path: .vscode-test/vscode-*
+          key: vscode-test-${{ runner.os }}-${{ hashFiles('scripts/test-extension.mjs') }}
       - run: xvfb-run -a node scripts/test-extension.mjs
       - name: Package VSIX
         working-directory: apps/vscode/extension
